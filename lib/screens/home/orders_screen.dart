@@ -176,11 +176,10 @@ class _OrderActions extends StatelessWidget {
         children: [
           _MiniButton(label: 'Buy again', filled: false, onPressed: onBuyAgain),
           const SizedBox(width: AppSpacing.sm),
-          _MiniButton(
-            label: 'Leave a review',
-            filled: true,
-            onPressed: () => AppToast.show(context, 'Review form coming soon'),
-          ),
+          // Reviews are per order item (see POST /reviews/'s
+          // order_item_id), so this opens the order detail screen to pick
+          // which item to review rather than reviewing the whole order.
+          _MiniButton(label: 'Leave a review', filled: true, onPressed: onOpenDetail),
         ],
       );
     }

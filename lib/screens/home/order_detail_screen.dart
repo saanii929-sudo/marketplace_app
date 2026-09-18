@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/mock_catalog.dart';
+import '../../features/catalog/catalog_controllers.dart';
 import '../../features/orders/order.dart';
 import '../../features/orders/orders_controllers.dart';
+import '../../features/reviews/reviews_controllers.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -13,6 +15,8 @@ import '../../widgets/buttons/app_back_button.dart';
 import '../../widgets/buttons/app_button.dart';
 import '../../widgets/cards/app_card.dart';
 import '../../widgets/home/network_image_box.dart';
+import '../../widgets/inputs/app_text_field.dart';
+import '../../widgets/overlays/app_modal.dart';
 import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
@@ -47,6 +51,19 @@ class OrderDetailScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _writeReview(BuildContext context, WidgetRef ref, OrderItem item) async {
+    final submitted = await AppModal.show<bool>(
+      context,
+      title: 'Review ${item.productName}',
+      child: _ReviewComposeForm(orderItemId: item.id),
+    );
+    if (submitted == true) {
+      ref.invalidate(productReviewsProvider(item.productSlug));
+      if (!context.mounted) return;
+      AppToast.show(context, 'Thanks for your review!', tone: AppToastTone.success);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
@@ -63,7 +80,11 @@ class OrderDetailScreen extends ConsumerWidget {
                       message: error is ApiException ? error.message : 'Couldn\'t load this order.',
                       onRetry: () => ref.invalidate(orderDetailProvider(orderNumber)),
                     ),
-                    data: (order) => _RealOrderBody(order: order, onCancel: () => _cancel(context, ref)),
+                    data: (order) => _RealOrderBody(
+                      order: order,
+                      onCancel: () => _cancel(context, ref),
+                      onWriteReview: (item) => _writeReview(context, ref, item),
+                    ),
                   ),
       ),
     );
@@ -98,9 +119,10 @@ class _DetailShimmer extends StatelessWidget {
 }
 
 class _RealOrderBody extends StatelessWidget {
-  const _RealOrderBody({required this.order, required this.onCancel});
+  const _RealOrderBody({required this.order, required this.onCancel, required this.onWriteReview});
   final OrderDetail order;
   final VoidCallback onCancel;
+  final ValueChanged<OrderItem> onWriteReview;
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +232,17 @@ class _RealOrderBody extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text('Qty ${item.qty}', style: AppTypography.caption),
+                            if (order.isDelivered)
+                              GestureDetector(
+                                onTap: () => onWriteReview(item),
+                                child: Text(
+                                  'Write a review',
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -461,6 +494,79 @@ class _TimelineStep extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Star-rating + comment form for `POST /reviews/`, shown in a bottom
+/// sheet from a delivered order's item row.
+class _ReviewComposeForm extends ConsumerStatefulWidget {
+  const _ReviewComposeForm({required this.orderItemId});
+  final int orderItemId;
+
+  @override
+  ConsumerState<_ReviewComposeForm> createState() => _ReviewComposeFormState();
+}
+
+class _ReviewComposeFormState extends ConsumerState<_ReviewComposeForm> {
+  final _commentController = TextEditingController();
+  int _rating = 5;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(reviewsApiProvider)
+          .create(orderItemId: widget.orderItemId, rating: _rating, comment: _commentController.text.trim());
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e is ApiException ? e.message : 'Couldn\'t submit your review. Please try again.',
+        tone: AppToastTone.error,
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(5, (i) {
+            final starIndex = i + 1;
+            return GestureDetector(
+              onTap: () => setState(() => _rating = starIndex),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Icon(
+                  starIndex <= _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                  size: 32,
+                  color: AppColors.warning,
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(label: 'Your review (optional)', controller: _commentController, hint: 'What did you think?'),
+        const SizedBox(height: AppSpacing.xl),
+        AppButton(label: 'Submit review', loading: _saving, onPressed: _submit),
+      ],
     );
   }
 }

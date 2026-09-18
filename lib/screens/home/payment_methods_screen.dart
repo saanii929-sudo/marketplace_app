@@ -15,6 +15,7 @@ import '../../widgets/cards/payment_card_logo.dart';
 import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
+import 'add_payment_method_screen.dart';
 
 class PaymentMethodsScreen extends ConsumerWidget {
   const PaymentMethodsScreen({super.key});
@@ -102,7 +103,9 @@ class PaymentMethodsScreen extends ConsumerWidget {
             AppButton(
               label: '+ Add payment method',
               variant: AppButtonVariant.secondary,
-              onPressed: () => AppToast.show(context, 'Adding a card is coming soon'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AddPaymentMethodScreen()),
+              ),
             ),
           ],
         ),

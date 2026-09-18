@@ -19,11 +19,6 @@ import '../../widgets/home/seller_promo_row.dart';
 import '../../widgets/layout/responsive_center.dart';
 import '../../widgets/states/shimmer_box.dart';
 
-/// The real SportTech marketplace home screen — every section (hero
-/// banner, category rail, flash deals, the four product rails, brand
-/// strip, and seller promo row) is now backed by the single aggregated
-/// `GET discovery/home/` payload; "Recently Viewed" comes from
-/// `GET discovery/recently-viewed/`.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key, required this.onCategoryTap});
 
@@ -60,7 +55,7 @@ class HomeScreen extends ConsumerWidget {
                     data: (home) => HeroCarousel(banners: home.banners),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  const _SectionTitle('Shop by category'),
+                  const _SectionTitle('Categories'),
                   const SizedBox(height: AppSpacing.md),
                   homeAsync.when(
                     loading: () => const _CategoryRailShimmer(),
@@ -75,9 +70,6 @@ class HomeScreen extends ConsumerWidget {
                         home.flashDeals.isEmpty ? const SizedBox.shrink() : _FlashDealsSection(deals: home.flashDeals),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  // discovery/home's product arrays don't map 1:1 onto these
-                  // four rail titles — this pairing is the closest
-                  // reasonable fit (see the Phase 2 plan).
                   homeAsync.when(
                     loading: () => const ProductRailShimmer(title: 'Trending Now'),
                     error: (error, _) => const ProductRail(title: 'Trending Now', products: []),
@@ -103,7 +95,7 @@ class HomeScreen extends ConsumerWidget {
                     loading: () => const ProductRailShimmer(title: 'Recommended For You'),
                     error: (error, _) => const ProductRail(title: 'Recommended For You', products: []),
                     data: (home) => ProductRail(
-                      title: 'Recommended For You',
+                      title: 'Recommended',
                       products: home.recommended.map((p) => p.toProduct()).toList(),
                     ),
                   ),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../data/mock_catalog.dart';
+import '../../screens/home/product_list_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../overlays/app_toast.dart';
 import 'product_tile.dart';
 
 /// A titled horizontal row of product tiles with a "See all" action.
@@ -28,7 +28,9 @@ class ProductRail extends StatelessWidget {
             children: [
               Text(title, style: AppTypography.h3),
               GestureDetector(
-                onTap: () => AppToast.show(context, 'More $title coming soon'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ProductListScreen(title: title, products: products)),
+                ),
                 child: Text(
                   'See all',
                   style: AppTypography.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),

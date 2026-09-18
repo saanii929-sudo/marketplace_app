@@ -4,12 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/cart/cart_controller.dart';
 import '../../features/catalog/category.dart';
 import '../../features/wishlist/wishlist_controller.dart';
+import '../../network/token_storage.dart';
 import '../../widgets/navigation/app_bottom_nav.dart';
+import '../auth/login_screen.dart';
 import 'cart_screen.dart';
 import 'categories_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'wishlist_screen.dart';
+
+const _profileTabIndex = 4;
 
 /// App shell hosting the bottom navigation over Home, Categories, Cart,
 /// Wishlist and Profile.
@@ -30,6 +34,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   });
 
   void _goHome() => setState(() => _index = 0);
+
+  Future<void> _onTabTap(int index) async {
+    if (index == _profileTabIndex) {
+      final access = await TokenStorage.instance.readAccess();
+      if (access == null || access.isEmpty) {
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LoginScreen()));
+        return;
+      }
+    }
+    if (mounted) setState(() => _index = index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +92,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       bottomNavigationBar: AppBottomNav(
         items: tabs,
         currentIndex: _index,
-        onTap: (i) => setState(() => _index = i),
+        onTap: (i) => _onTabTap(i),
       ),
     );
   }

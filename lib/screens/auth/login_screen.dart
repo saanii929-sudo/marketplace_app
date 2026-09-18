@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../features/auth/auth_controller.dart';
+import '../../features/auth/session.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -17,6 +18,15 @@ import '../../widgets/overlays/app_toast.dart';
 import '../home/home_shell.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
+import 'verification_screen.dart';
+
+/// The given API has no structured error code for "account exists but
+/// isn't verified yet" — this is a best-effort match on the login error
+/// message's wording, since that's all the backend surfaces.
+bool _looksLikeUnverifiedError(String message) {
+  final m = message.toLowerCase();
+  return m.contains('not verified') || m.contains('not been verified') || m.contains('please verify') || m.contains('verify your');
+}
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -41,19 +51,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final identifier = _emailController.text.trim();
     setState(() => _loading = true);
     try {
       await ref
           .read(authControllerProvider.notifier)
-          .login(identifier: _emailController.text.trim(), password: _passwordController.text);
+          .login(identifier: identifier, password: _passwordController.text);
+      final status = await resolveSessionStatus(ref);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeShell()));
+      switch (status) {
+        case SessionStatus.authenticatedCustomer:
+          Navigator.of(
+            context,
+          ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeShell()), (route) => false);
+        case SessionStatus.wrongRole:
+          AppToast.show(
+            context,
+            'This app is for customer accounts only. Please sign in with a customer account.',
+            tone: AppToastTone.error,
+          );
+        case SessionStatus.unauthenticated:
+          AppToast.show(context, 'Couldn\'t confirm your account. Please try again.', tone: AppToastTone.error);
+      }
     } catch (e) {
       if (!mounted) return;
+      if (e is ApiException && _looksLikeUnverifiedError(e.message)) {
+        await _redirectToVerification(identifier);
+        return;
+      }
       AppToast.show(context, e is ApiException ? e.message : 'Couldn\'t log in. Please try again.', tone: AppToastTone.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// The account exists but isn't verified — send a fresh code and take
+  /// the user straight to the same verification flow used right after
+  /// registration, instead of just showing the error as a toast.
+  Future<void> _redirectToVerification(String identifier) async {
+    try {
+      await ref.read(authControllerProvider.notifier).sendOtp(destination: identifier, purpose: 'signup_verify');
+    } catch (_) {
+      // Best-effort — the verification screen's own "Resend code" lets the
+      // user retry if this send failed.
+    }
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => VerificationScreen(contact: identifier, isRegistration: true)));
   }
 
   @override

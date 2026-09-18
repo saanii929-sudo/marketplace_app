@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/mock_profile.dart';
+import '../../features/auth/session.dart';
 import '../../features/profile/profile_controller.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
@@ -17,6 +18,7 @@ import '../../widgets/layout/responsive_center.dart';
 import '../../widgets/overlays/app_modal.dart';
 import '../../widgets/overlays/app_toast.dart';
 import '../home/home_shell.dart';
+import '../onboarding/welcome_screen.dart';
 
 class AccountSetupScreen extends ConsumerStatefulWidget {
   const AccountSetupScreen({super.key});
@@ -72,7 +74,7 @@ class _AccountSetupScreenState extends ConsumerState<AccountSetupScreen> {
       // endpoint to resolve IDs for a brand-new account with no interests
       // on file, so this selection stays local-only for now.
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeShell()), (route) => false);
+      await _enterApp();
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -80,10 +82,22 @@ class _AccountSetupScreenState extends ConsumerState<AccountSetupScreen> {
         e is ApiException ? e.message : 'Couldn\'t save your photo. You can add it later from your profile.',
         tone: AppToastTone.error,
       );
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeShell()), (route) => false);
+      await _enterApp();
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// This app is customer-only — confirm the newly created account really
+  /// is a customer before landing in Home (in the unexpected case it
+  /// isn't, send them to Welcome instead).
+  Future<void> _enterApp() async {
+    final status = await resolveSessionStatus(ref);
+    if (!mounted) return;
+    final destination = status == SessionStatus.authenticatedCustomer
+        ? const HomeShell()
+        : const WelcomeScreen(notice: 'This app is for customer accounts only.');
+    Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => destination), (route) => false);
   }
 
   @override

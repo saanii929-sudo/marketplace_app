@@ -52,17 +52,6 @@ class Product {
       : (((originalPrice! - price) / originalPrice!) * 100).round();
 }
 
-class SportCategory {
-  const SportCategory({
-    required this.label,
-    required this.icon,
-    required this.imageUrl,
-  });
-  final String label;
-  final IconData icon;
-  final String imageUrl;
-}
-
 class Collection {
   const Collection({
     required this.title,
@@ -98,59 +87,6 @@ class Review {
   final int rating;
   final String text;
 }
-
-final List<SportCategory> mockCategories = [
-  SportCategory(
-    label: 'Football',
-    icon: Icons.sports_soccer,
-    imageUrl: _imageUrl('sporttech-cat-football'),
-  ),
-  SportCategory(
-    label: 'Basketball',
-    icon: Icons.sports_basketball,
-    imageUrl: _imageUrl('sporttech-cat-basketball'),
-  ),
-  SportCategory(
-    label: 'Running',
-    icon: Icons.directions_run,
-    imageUrl: _imageUrl('sporttech-cat-running'),
-  ),
-  SportCategory(
-    label: 'Gym & Fitness',
-    icon: Icons.fitness_center,
-    imageUrl: _imageUrl('sporttech-cat-gym'),
-  ),
-  SportCategory(
-    label: 'Tennis',
-    icon: Icons.sports_tennis,
-    imageUrl: _imageUrl('sporttech-cat-tennis'),
-  ),
-  SportCategory(
-    label: 'Boxing',
-    icon: Icons.sports_mma,
-    imageUrl: _imageUrl('sporttech-cat-boxing'),
-  ),
-  SportCategory(
-    label: 'Cycling',
-    icon: Icons.pedal_bike,
-    imageUrl: _imageUrl('sporttech-cat-cycling'),
-  ),
-  SportCategory(
-    label: 'Swimming',
-    icon: Icons.pool,
-    imageUrl: _imageUrl('sporttech-cat-swimming'),
-  ),
-  SportCategory(
-    label: 'Sportswear',
-    icon: Icons.checkroom,
-    imageUrl: _imageUrl('sporttech-cat-sportswear'),
-  ),
-  SportCategory(
-    label: 'Accessories',
-    icon: Icons.watch_outlined,
-    imageUrl: _imageUrl('sporttech-cat-accessories'),
-  ),
-];
 
 final List<Product> mockProducts = [
   // Football

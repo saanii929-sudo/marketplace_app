@@ -7,13 +7,34 @@ import '../../widgets/buttons/app_button.dart';
 import '../../widgets/layout/responsive_center.dart';
 import '../../widgets/misc/illustrations.dart';
 import '../../widgets/overlays/app_modal.dart';
+import '../../widgets/overlays/app_toast.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
 import '../home/home_shell.dart';
 import 'onboarding_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({super.key});
+class WelcomeScreen extends StatefulWidget {
+  const WelcomeScreen({super.key, this.notice});
+
+  /// Shown once as a toast after the first frame — used to explain why the
+  /// user landed back here (e.g. a non-customer session was signed out).
+  final String? notice;
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final notice = widget.notice;
+    if (notice != null && notice.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) AppToast.show(context, notice, tone: AppToastTone.error);
+      });
+    }
+  }
 
   Future<void> _continueAsGuest(BuildContext context) async {
     final confirmed = await AppModal.confirm(

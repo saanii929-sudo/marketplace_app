@@ -18,6 +18,7 @@ import '../../widgets/home/network_image_box.dart';
 import '../../widgets/home/product_tile.dart';
 import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/shimmer_box.dart';
+import 'seller_profile_screen.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   const ProductDetailScreen({super.key, required this.product});
@@ -31,6 +32,7 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   String? _selectedSize;
   int _quantity = 1;
+  int _selectedImageIndex = 0;
 
   @override
   void initState() {
@@ -95,6 +97,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ? detail.relatedProducts.map((p) => p.toProduct()).toList()
         : (slug == null ? mockProducts.where((p) => p.category == product.category && p.id != product.id).toList() : <Product>[]);
 
+    final galleryImages = detail != null && detail.images.isNotEmpty
+        ? detail.images.map((i) => i.url).toList()
+        : [product.imageUrl];
+    final selectedImageIndex = _selectedImageIndex.clamp(0, galleryImages.length - 1);
+
     final variants = detail?.variants ?? const [];
     final sizes = variants.map((v) => v.size).where((s) => s.isNotEmpty).toSet().toList();
     final legacySizes = slug == null ? productSizes : const <String>[];
@@ -117,7 +124,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 AspectRatio(
                   aspectRatio: 1.60,
                   child: NetworkImageBox(
-                    url: product.imageUrl,
+                    url: galleryImages[selectedImageIndex],
                     fallbackIcon: product.icon,
                     cacheWidth: 800,
                   ),
@@ -150,6 +157,39 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ),
               ],
             ),
+            if (galleryImages.length > 1) ...[
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: 64,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  itemCount: galleryImages.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+                  itemBuilder: (context, i) {
+                    final isSelected = i == selectedImageIndex;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedImageIndex = i),
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(color: isSelected ? AppColors.ink : Colors.transparent, width: 2),
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        child: NetworkImageBox(
+                          url: galleryImages[i],
+                          fallbackIcon: product.icon,
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          cacheWidth: 160,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
@@ -691,7 +731,9 @@ class _RealSellerCard extends StatelessWidget {
           AppButton(
             label: 'Visit store',
             variant: AppButtonVariant.secondary,
-            onPressed: () => AppToast.show(context, 'Opening ${seller.businessName}'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => SellerProfileScreen(slug: seller.slug)),
+            ),
           ),
         ],
       ),

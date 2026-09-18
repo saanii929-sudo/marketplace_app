@@ -13,9 +13,17 @@ class DiscoveryApi {
   });
 
   Future<List<RecentlyViewedEntry>> getRecentlyViewed() => _guard(() async {
-    final response = await _dio.get<Map<String, dynamic>>('discovery/recently-viewed/');
-    final results = response.data?['results'] as List<dynamic>? ?? [];
-    return results.map((e) => RecentlyViewedEntry.fromJson(e as Map<String, dynamic>)).toList();
+    final entries = <RecentlyViewedEntry>[];
+    String? nextUrl = 'discovery/recently-viewed/';
+    while (nextUrl != null) {
+      final response = await _dio.get<Map<String, dynamic>>(nextUrl);
+      final data = response.data!;
+      entries.addAll(
+        (data['results'] as List<dynamic>).map((e) => RecentlyViewedEntry.fromJson(e as Map<String, dynamic>)),
+      );
+      nextUrl = data['next'] as String?;
+    }
+    return entries;
   });
 
   Future<List<RecentSearch>> getRecentSearches() => _guard(() async {

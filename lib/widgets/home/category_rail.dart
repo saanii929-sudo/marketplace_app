@@ -6,10 +6,6 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import 'network_image_box.dart';
 
-/// Horizontally scrollable category cards — backed by the real categories
-/// from `GET discovery/home/`. There's no image field on a real category,
-/// so each card falls back to a sport-appropriate icon (see
-/// [iconForCategoryName]) instead of a photo.
 class CategoryRail extends StatelessWidget {
   const CategoryRail({super.key, required this.categories, required this.onCategoryTap});
 

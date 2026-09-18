@@ -92,6 +92,7 @@ class ProductVariant {
     required this.id,
     required this.size,
     required this.color,
+    required this.colorSwatch,
     required this.stockQty,
     required this.inStock,
   });
@@ -99,6 +100,7 @@ class ProductVariant {
   final int id;
   final String size;
   final String color;
+  final String? colorSwatch;
   final int stockQty;
   final bool inStock;
 
@@ -106,6 +108,7 @@ class ProductVariant {
     id: json['id'] as int? ?? 0,
     size: json['size'] as String? ?? '',
     color: json['color'] as String? ?? '',
+    colorSwatch: json['color_swatch'] as String?,
     stockQty: json['stock_qty'] as int? ?? 0,
     inStock: json['in_stock'] as bool? ?? true,
   );
@@ -302,5 +305,50 @@ class CatalogProductDetail {
     description: description,
     badgeLabel: isFeatured ? 'Featured' : null,
     slug: slug,
+  );
+}
+
+/// A seller's public storefront, from `GET /catalog/sellers/{slug}/`.
+class SellerProfile {
+  const SellerProfile({
+    required this.id,
+    required this.businessName,
+    required this.slug,
+    required this.tagline,
+    required this.logo,
+    required this.rating,
+    required this.isVerified,
+    required this.isFeatured,
+    required this.supportPhone,
+    required this.productCount,
+    required this.products,
+  });
+
+  final int id;
+  final String businessName;
+  final String slug;
+  final String tagline;
+  final String logo;
+  final double rating;
+  final bool isVerified;
+  final bool isFeatured;
+  final String supportPhone;
+  final int productCount;
+  final List<CatalogProductSummary> products;
+
+  factory SellerProfile.fromJson(Map<String, dynamic> json) => SellerProfile(
+    id: json['id'] as int? ?? 0,
+    businessName: json['business_name'] as String? ?? '',
+    slug: json['slug'] as String? ?? '',
+    tagline: json['tagline'] as String? ?? '',
+    logo: json['logo'] as String? ?? '',
+    rating: _num(json['rating']),
+    isVerified: json['is_verified'] as bool? ?? false,
+    isFeatured: json['is_featured'] as bool? ?? false,
+    supportPhone: json['support_phone'] as String? ?? '',
+    productCount: json['product_count'] as int? ?? 0,
+    products: (json['products'] as List<dynamic>? ?? [])
+        .map((e) => CatalogProductSummary.fromJson(e as Map<String, dynamic>))
+        .toList(),
   );
 }

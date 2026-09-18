@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/auth_controller.dart';
+import '../../features/auth/session.dart';
+import '../../features/orders/orders_controllers.dart';
 import '../../features/profile/profile_controller.dart';
 import '../../features/wishlist/wishlist_controller.dart';
 import '../../network/api_exception.dart';
@@ -32,6 +34,7 @@ class ProfileScreen extends ConsumerWidget {
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
     await ref.read(authControllerProvider.notifier).logout();
+    clearUserScopedProviders(ref);
     if (!context.mounted) return;
     Navigator.of(
       context,
@@ -94,7 +97,12 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xl),
               Row(
                 children: [
-                  Expanded(child: _StatCard(value: '12', label: 'Orders')),
+                  Expanded(
+                    child: _StatCard(
+                      value: '${ref.watch(ordersProvider).value?.length ?? 0}',
+                      label: 'Orders',
+                    ),
+                  ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: _StatCard(
@@ -103,7 +111,10 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
-                  Expanded(child: _StatCard(value: '8', label: 'Reviews')),
+                  // No "my reviews" endpoint was given anywhere in the API,
+                  // so this can't be wired to real data — shown as a dash
+                  // rather than a fabricated count.
+                  Expanded(child: _StatCard(value: '—', label: 'Reviews')),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),

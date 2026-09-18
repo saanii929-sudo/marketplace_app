@@ -22,6 +22,7 @@ import '../../widgets/cards/payment_card_logo.dart';
 import '../../widgets/states/confirmation_state.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
+import 'add_payment_method_screen.dart';
 import 'address_form_screen.dart';
 import 'order_detail_screen.dart';
 
@@ -277,9 +278,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             onRetry: () => ref.read(paymentMethodsControllerProvider.notifier).refresh(),
           ),
           data: (methods) => methods.isEmpty
-              ? Text(
-                  'No saved payment methods yet.',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral500),
+              ? _SelectableTile(
+                  selected: false,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddPaymentMethodScreen()),
+                  ),
+                  child: Text('+ Add a payment method', style: AppTypography.bodyMedium),
                 )
               : Column(
                   children: [

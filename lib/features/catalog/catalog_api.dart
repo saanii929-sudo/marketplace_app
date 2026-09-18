@@ -30,9 +30,37 @@ class CatalogApi {
     return products;
   });
 
+  /// Fetches every page of `GET /catalog/categories/{slug}/products/` — the
+  /// dedicated resource-nested alternative to filtering `/catalog/products/`
+  /// client-side, and the only way to filter by subcategory (the flat
+  /// product list has no subcategory field per item).
+  Future<List<CatalogProductSummary>> getProductsForCategory(String categorySlug, {String? subcategorySlug}) =>
+      _guard(() async {
+        final products = <CatalogProductSummary>[];
+        String? nextUrl = 'catalog/categories/$categorySlug/products/';
+        Map<String, dynamic>? query = {'subcategory': ?subcategorySlug};
+        while (nextUrl != null) {
+          final response = await _dio.get<Map<String, dynamic>>(nextUrl, queryParameters: query);
+          // Only the first request needs the subcategory filter applied —
+          // `next` already carries it forward as part of the full URL.
+          query = null;
+          final data = response.data!;
+          products.addAll(
+            (data['results'] as List<dynamic>).map((e) => CatalogProductSummary.fromJson(e as Map<String, dynamic>)),
+          );
+          nextUrl = data['next'] as String?;
+        }
+        return products;
+      });
+
   Future<CatalogProductDetail> getProduct(String slug) => _guard(() async {
     final response = await _dio.get<Map<String, dynamic>>('catalog/products/$slug/');
     return CatalogProductDetail.fromJson(response.data!);
+  });
+
+  Future<SellerProfile> getSeller(String slug) => _guard(() async {
+    final response = await _dio.get<Map<String, dynamic>>('catalog/sellers/$slug/');
+    return SellerProfile.fromJson(response.data!);
   });
 
   Future<List<ProductReview>> getProductReviews(String slug) => _guard(() async {

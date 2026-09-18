@@ -4,10 +4,10 @@ import '../../features/catalog/product.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../screens/home/seller_profile_screen.dart';
 import '../badges/app_badge.dart';
 import '../buttons/app_button.dart';
 import '../cards/app_card.dart';
-import '../overlays/app_toast.dart';
 
 /// Horizontal row spotlighting verified sellers — backed by
 /// `featured_sellers` from `GET discovery/home/`.
@@ -78,7 +78,9 @@ class _SellerCard extends StatelessWidget {
               label: 'Visit store',
               variant: AppButtonVariant.ghost,
               expand: false,
-              onPressed: () => AppToast.show(context, 'Opening ${seller.businessName}'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => SellerProfileScreen(slug: seller.slug)),
+              ),
             ),
           ],
         ),

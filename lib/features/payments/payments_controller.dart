@@ -15,6 +15,22 @@ class PaymentMethodsController extends AsyncNotifier<List<PaymentMethod>> {
     state = await AsyncValue.guard(() => ref.read(paymentsApiProvider).list());
   }
 
+  Future<void> create({required String brand, required String last4, int? expiryMonth, int? expiryYear}) async {
+    await ref
+        .read(paymentsApiProvider)
+        .create(
+          gateway: 'paystack',
+          // Placeholder until a real gateway SDK is integrated — see the
+          // doc comment on PaymentsApi.
+          token: 'demo_${DateTime.now().millisecondsSinceEpoch}',
+          brand: brand,
+          last4: last4,
+          expiryMonth: expiryMonth,
+          expiryYear: expiryYear,
+        );
+    await refresh();
+  }
+
   Future<void> delete(int id) async {
     await ref.read(paymentsApiProvider).delete(id);
     await refresh();

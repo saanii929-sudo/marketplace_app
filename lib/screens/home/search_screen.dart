@@ -10,6 +10,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/badges/app_badge.dart';
 import '../../widgets/overlays/app_toast.dart';
+import 'product_detail_screen.dart';
 
 /// Recent searches come from `GET discovery/search/recent/` (seeded once,
 /// then kept up to date locally each session); popular searches stay mock
@@ -197,7 +198,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         title: Text(product.name, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
         subtitle: Text('${product.brand} · ${product.category}', style: AppTypography.caption),
         trailing: product.badgeLabel != null ? AppBadge(label: product.badgeLabel!, tone: AppBadgeTone.accent) : null,
-        onTap: () => _search(product.name),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product)),
+        ),
       );
     }).toList();
   }
