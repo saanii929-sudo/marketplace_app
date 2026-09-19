@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/session.dart';
+import '../../features/cart/cart_controller.dart';
 import '../../features/orders/orders_controllers.dart';
 import '../../features/profile/profile_controller.dart';
 import '../../features/wishlist/wishlist_controller.dart';
@@ -112,10 +113,15 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
-                  // No "my reviews" endpoint was given anywhere in the API,
-                  // so this can't be wired to real data — shown as a dash
-                  // rather than a fabricated count.
-                  Expanded(child: _StatCard(value: '—', label: 'Reviews')),
+                  // No "my reviews" endpoint was given anywhere in the API
+                  // to back a real reviews count, so this shows cart items
+                  // instead rather than a placeholder that reads as "0".
+                  Expanded(
+                    child: _StatCard(
+                      value: '${ref.watch(cartControllerProvider).value?.itemCount ?? 0}',
+                      label: 'In cart',
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
