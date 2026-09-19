@@ -64,6 +64,12 @@ class _AddPaymentMethodScreenState extends ConsumerState<AddPaymentMethodScreen>
       await ref
           .read(paymentMethodsControllerProvider.notifier)
           .create(
+            // No gateway is stated for a saved method anywhere in the
+            // given API — inferred from the payments webhook explicitly
+            // naming Hubtel for order checkout, and Hubtel being Ghana's
+            // dominant mobile-money aggregator (this app is Ghana-focused
+            // throughout). Worth confirming against the real backend.
+            gateway: _isCard ? 'paystack' : 'hubtel',
             brand: _brandController.text.trim(),
             last4: _last4Controller.text.trim(),
             expiryMonth: month,

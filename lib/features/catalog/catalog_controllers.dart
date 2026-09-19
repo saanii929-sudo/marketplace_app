@@ -35,3 +35,7 @@ final productReviewsProvider = FutureProvider.family<List<ProductReview>, String
 final sellerProfileProvider = FutureProvider.family<SellerProfile, String>(
   (ref, slug) => ref.read(catalogApiProvider).getSeller(slug),
 );
+
+final brandProfileProvider = FutureProvider.family<BrandProfile, String>(
+  (ref, slug) => ref.read(catalogApiProvider).getBrand(slug),
+);

@@ -63,6 +63,11 @@ class CatalogApi {
     return SellerProfile.fromJson(response.data!);
   });
 
+  Future<BrandProfile> getBrand(String slug) => _guard(() async {
+    final response = await _dio.get<Map<String, dynamic>>('catalog/brands/$slug/');
+    return BrandProfile.fromJson(response.data!);
+  });
+
   Future<List<ProductReview>> getProductReviews(String slug) => _guard(() async {
     final response = await _dio.get<Map<String, dynamic>>('catalog/products/$slug/reviews/');
     final results = response.data?['results'] as List<dynamic>? ?? [];

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../network/api_exception.dart';
+import '../checkout/hubtel_status.dart';
 import 'order.dart';
 
 class OrdersApi {
@@ -19,6 +20,24 @@ class OrdersApi {
   Future<OrderDetail> get(String orderNumber) => _guard(() async {
     final response = await _dio.get<Map<String, dynamic>>('orders/$orderNumber/');
     return OrderDetail.fromJson(response.data!);
+  });
+
+  /// The live server responds to a successful order creation with the same
+  /// checkout envelope as `GET /checkout/hubtel/status/`
+  /// (`{reference, checkout_url, status, failure_reason, order}`), not a
+  /// bare `OrderDetail` — `order` is only populated once payment resolves,
+  /// so callers must handle both an immediately-available order and one
+  /// that still needs polling/redirect via `checkout_url`.
+  Future<HubtelCheckoutStatus> place({
+    required int addressId,
+    required int deliveryMethodId,
+    required int paymentMethodId,
+  }) => _guard(() async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      'orders/',
+      data: {'address_id': addressId, 'delivery_method_id': deliveryMethodId, 'payment_method_id': paymentMethodId},
+    );
+    return HubtelCheckoutStatus.fromJson(response.data!);
   });
 
   Future<OrderTracking> getTracking(String orderNumber) => _guard(() async {

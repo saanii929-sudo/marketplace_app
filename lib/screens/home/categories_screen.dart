@@ -14,18 +14,9 @@ import '../../widgets/states/shimmer_box.dart';
 
 const _sidebarWidth = 104.0;
 
-/// Categories tab: a subcategory chip filter plus a grid of the matching
-/// products at full screen width, with the category picker as a
-/// hamburger-triggered overlay (not an inline column, which was cramping
-/// the grid down to barely-usable tiles) — backed by
-/// `GET /catalog/categories/` and the resource-nested
-/// `GET /catalog/categories/{slug}/products/`, which real-filters by both
-/// category and subcategory server-side.
 class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key, this.initialCategoryId});
 
-  /// Set when navigated here from Home's category rail, to deep-link
-  /// straight to the tapped category.
   final int? initialCategoryId;
 
   @override
@@ -35,8 +26,6 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   int? _selectedCategoryId;
 
-  /// `null` means the "All" chip — the subcategory filter is otherwise
-  /// keyed by slug (needed for the query param, not just display).
   String? _selectedSubcategorySlug;
 
   bool _sidebarOpen = false;

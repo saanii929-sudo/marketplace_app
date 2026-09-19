@@ -308,6 +308,38 @@ class CatalogProductDetail {
   );
 }
 
+/// A brand's public storefront, from `GET /catalog/brands/{slug}/` —
+/// mirrors [SellerProfile] but with a slimmer schema (no tagline/rating/
+/// support phone — just identity + its product listing).
+class BrandProfile {
+  const BrandProfile({
+    required this.id,
+    required this.name,
+    required this.slug,
+    required this.logo,
+    required this.productCount,
+    required this.products,
+  });
+
+  final int id;
+  final String name;
+  final String slug;
+  final String logo;
+  final int productCount;
+  final List<CatalogProductSummary> products;
+
+  factory BrandProfile.fromJson(Map<String, dynamic> json) => BrandProfile(
+    id: json['id'] as int? ?? 0,
+    name: json['name'] as String? ?? '',
+    slug: json['slug'] as String? ?? '',
+    logo: json['logo'] as String? ?? '',
+    productCount: json['product_count'] as int? ?? 0,
+    products: (json['products'] as List<dynamic>? ?? [])
+        .map((e) => CatalogProductSummary.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
 /// A seller's public storefront, from `GET /catalog/sellers/{slug}/`.
 class SellerProfile {
   const SellerProfile({

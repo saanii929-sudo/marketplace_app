@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../features/auth/phone_utils.dart';
 import '../../features/catalog/catalog_controllers.dart';
 import '../../features/sellers/seller_application.dart';
 import '../../features/sellers/sellers_controllers.dart';
@@ -50,6 +51,11 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
   bool _idDocumentError = false;
   bool _loading = false;
   bool _submitted = false;
+
+  /// Set when the user taps "Apply again" on a rejected application, so
+  /// the form shows instead of the (still-rejected, until resubmitted)
+  /// status view.
+  bool _forceShowForm = false;
 
   @override
   void dispose() {
@@ -110,7 +116,7 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
           .apply(
             businessName: _businessNameController.text.trim(),
             categoryId: _selectedCategoryId!,
-            phone: _phoneController.text.trim(),
+            phone: normalizeGhanaPhone(_phoneController.text),
             idDocument: _idDocument!,
             businessCertificate: _businessCertificate,
           );
@@ -171,10 +177,17 @@ class _BecomeSellerScreenState extends ConsumerState<BecomeSellerScreen> {
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: _submitted
                   ? _SuccessView(businessName: _businessNameController.text.trim())
+                  : _forceShowForm
+                  ? _buildForm()
                   : statusAsync.when(
                       loading: () => const ShimmerBox(width: double.infinity, height: 140, borderRadius: AppRadius.lg),
                       error: (error, _) => _buildForm(),
-                      data: (status) => status == null ? _buildForm() : _StatusView(status: status),
+                      data: (status) => status == null
+                          ? _buildForm()
+                          : _StatusView(
+                              status: status,
+                              onApplyAgain: () => setState(() => _forceShowForm = true),
+                            ),
                     ),
             ),
           ],
@@ -399,8 +412,9 @@ class _DocumentSourceTile extends StatelessWidget {
 /// application already exists, so a repeat visit doesn't invite a
 /// duplicate submission.
 class _StatusView extends StatelessWidget {
-  const _StatusView({required this.status});
+  const _StatusView({required this.status, required this.onApplyAgain});
   final SellerApplicationStatus status;
+  final VoidCallback onApplyAgain;
 
   @override
   Widget build(BuildContext context) {
@@ -434,13 +448,16 @@ class _StatusView extends StatelessWidget {
             'We\'re reviewing your application and will get back to you within 2 business days.',
             style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral600),
           )
-        else if (status.isRejected)
+        else if (status.isRejected) ...[
           ErrorState(
             title: 'Application rejected',
             message: status.reviewerNote.isNotEmpty
                 ? status.reviewerNote
                 : 'Your application wasn\'t approved this time. Contact support for details.',
-          )
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppButton(label: 'Apply again', onPressed: onApplyAgain),
+        ]
         else
           Text(
             'Your seller account is approved — check your email for next steps.',

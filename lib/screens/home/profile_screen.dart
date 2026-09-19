@@ -18,6 +18,7 @@ import '../../widgets/states/shimmer_box.dart';
 import '../onboarding/welcome_screen.dart';
 import 'addresses_screen.dart';
 import 'become_seller_screen.dart';
+import 'conversations_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_support_screen.dart';
 import 'orders_screen.dart';
@@ -140,6 +141,13 @@ class ProfileScreen extends ConsumerWidget {
                       label: 'Payment methods',
                       onTap: () =>
                           Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PaymentMethodsScreen())),
+                    ),
+                    const Divider(height: 1),
+                    SettingsTile(
+                      icon: Icons.chat_bubble_outline,
+                      label: 'Messages',
+                      onTap: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConversationsScreen())),
                     ),
                   ],
                 ),

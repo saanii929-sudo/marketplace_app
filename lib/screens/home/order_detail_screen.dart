@@ -14,28 +14,16 @@ import '../../widgets/badges/app_badge.dart';
 import '../../widgets/buttons/app_back_button.dart';
 import '../../widgets/buttons/app_button.dart';
 import '../../widgets/cards/app_card.dart';
-import '../../widgets/home/network_image_box.dart';
 import '../../widgets/inputs/app_text_field.dart';
 import '../../widgets/overlays/app_modal.dart';
 import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 
-/// A just-placed order snapshot for the checkout confirmation flow — there
-/// is no real order behind it yet (see the missing-delivery-methods gap in
-/// the Phase 3 plan, which blocks real order placement), so this renders
-/// directly instead of fetching from the API.
-class LocalOrderPreview {
-  const LocalOrderPreview({required this.items, required this.total});
-  final List<Product> items;
-  final double total;
-}
-
 class OrderDetailScreen extends ConsumerWidget {
-  const OrderDetailScreen({super.key, required this.orderNumber, this.localPreview});
+  const OrderDetailScreen({super.key, required this.orderNumber});
 
   final String orderNumber;
-  final LocalOrderPreview? localPreview;
 
   Future<void> _cancel(BuildContext context, WidgetRef ref) async {
     try {
@@ -69,23 +57,21 @@ class OrderDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F4EE),
       body: SafeArea(
-        child: localPreview != null
-            ? _LocalPreviewBody(orderNumber: orderNumber, preview: localPreview!)
-            : ref
-                  .watch(orderDetailProvider(orderNumber))
-                  .when(
-                    loading: () => const _DetailShimmer(),
-                    error: (error, _) => ErrorState(
-                      title: 'Something went wrong',
-                      message: error is ApiException ? error.message : 'Couldn\'t load this order.',
-                      onRetry: () => ref.invalidate(orderDetailProvider(orderNumber)),
-                    ),
-                    data: (order) => _RealOrderBody(
-                      order: order,
-                      onCancel: () => _cancel(context, ref),
-                      onWriteReview: (item) => _writeReview(context, ref, item),
-                    ),
-                  ),
+        child: ref
+            .watch(orderDetailProvider(orderNumber))
+            .when(
+              loading: () => const _DetailShimmer(),
+              error: (error, _) => ErrorState(
+                title: 'Something went wrong',
+                message: error is ApiException ? error.message : 'Couldn\'t load this order.',
+                onRetry: () => ref.invalidate(orderDetailProvider(orderNumber)),
+              ),
+              data: (order) => _RealOrderBody(
+                order: order,
+                onCancel: () => _cancel(context, ref),
+                onWriteReview: (item) => _writeReview(context, ref, item),
+              ),
+            ),
       ),
     );
   }
@@ -289,147 +275,6 @@ class _RealOrderBody extends StatelessWidget {
     );
   }
 }
-
-class _LocalPreviewBody extends StatelessWidget {
-  const _LocalPreviewBody({required this.orderNumber, required this.preview});
-  final String orderNumber;
-  final LocalOrderPreview preview;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-      children: [
-        Row(
-          children: [
-            AppBackButton(onTap: () => Navigator.of(context).pop()),
-            const SizedBox(width: AppSpacing.md),
-            Text(orderNumber, style: AppTypography.h2),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppBadge(label: 'Processing', tone: AppBadgeTone.neutral),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Estimated delivery: 2–4 business days',
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral600),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        AppCard(
-          child: Column(
-            children: const [
-              _LocalTimelineStep(title: 'Order placed', subtitle: "We've received your order", completed: true, isLast: false),
-              _LocalTimelineStep(title: 'Processing', subtitle: 'Seller is preparing your items', completed: false, isLast: true),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        Text('Items in this order', style: AppTypography.label.copyWith(color: AppColors.neutral500)),
-        const SizedBox(height: AppSpacing.sm),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  for (final item in preview.items) ...[
-                    SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: NetworkImageBox(
-                        url: item.imageUrl,
-                        fallbackIcon: item.icon,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                  ],
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(formatPrice(preview.total), style: AppTypography.h3),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        Text('Delivering to', style: AppTypography.label.copyWith(color: AppColors.neutral500)),
-        const SizedBox(height: AppSpacing.sm),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Saved address', style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              Text(
-                'See your saved addresses for full delivery details.',
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral600),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LocalTimelineStep extends StatelessWidget {
-  const _LocalTimelineStep({required this.title, required this.subtitle, required this.completed, required this.isLast});
-  final String title;
-  final String subtitle;
-  final bool completed;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final circleColor = completed ? AppColors.success : AppColors.primary;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
-                child: completed
-                    ? const Icon(Icons.check, size: 16, color: AppColors.white)
-                    : const Text('2', style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w700)),
-              ),
-              if (!isLast) Expanded(child: Container(width: 2, color: AppColors.success)),
-            ],
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
-                  Text(subtitle, style: AppTypography.bodySmall.copyWith(color: AppColors.neutral500)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Renders the real `status_history` from `GET
-/// /orders/{order_number}/tracking/` — unlike the old fixed 5-step mock
-/// timeline, this only shows transitions that have actually happened (no
-/// guessed "upcoming" steps), with the most recent one highlighted.
 class _OrderTimeline extends StatelessWidget {
   const _OrderTimeline({required this.history});
   final List<OrderStatusEvent> history;
@@ -498,8 +343,6 @@ class _TimelineStep extends StatelessWidget {
   }
 }
 
-/// Star-rating + comment form for `POST /reviews/`, shown in a bottom
-/// sheet from a delivered order's item row.
 class _ReviewComposeForm extends ConsumerStatefulWidget {
   const _ReviewComposeForm({required this.orderItemId});
   final int orderItemId;
@@ -512,6 +355,7 @@ class _ReviewComposeFormState extends ConsumerState<_ReviewComposeForm> {
   final _commentController = TextEditingController();
   int _rating = 5;
   bool _saving = false;
+  bool _commentError = false;
 
   @override
   void dispose() {
@@ -520,6 +364,10 @@ class _ReviewComposeFormState extends ConsumerState<_ReviewComposeForm> {
   }
 
   Future<void> _submit() async {
+    if (_commentController.text.trim().isEmpty) {
+      setState(() => _commentError = true);
+      return;
+    }
     setState(() => _saving = true);
     try {
       await ref
@@ -563,7 +411,15 @@ class _ReviewComposeFormState extends ConsumerState<_ReviewComposeForm> {
           }),
         ),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Your review (optional)', controller: _commentController, hint: 'What did you think?'),
+        AppTextField(
+          label: 'Your review',
+          controller: _commentController,
+          hint: 'What did you think?',
+          errorText: _commentError ? 'Please write a short review' : null,
+          onChanged: (_) {
+            if (_commentError) setState(() => _commentError = false);
+          },
+        ),
         const SizedBox(height: AppSpacing.xl),
         AppButton(label: 'Submit review', loading: _saving, onPressed: _submit),
       ],

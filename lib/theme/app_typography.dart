@@ -28,7 +28,7 @@ class AppTypography {
   static TextStyle bodySmall = _poppins(13, FontWeight.w500, height: 1.35, color: AppColors.neutral600);
 
   static TextStyle label = _poppins(14, FontWeight.w600, height: 1.2);
-  static TextStyle caption = _poppins(11, FontWeight.w500, height: 1.3, color: AppColors.neutral500);
+  static TextStyle caption = _poppins(10, FontWeight.w500, height: 1.3, color: AppColors.neutral500);
   static TextStyle overline = _poppins(
     12,
     FontWeight.w700,

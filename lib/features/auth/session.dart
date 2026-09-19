@@ -4,6 +4,7 @@ import '../../network/api_exception.dart';
 import '../../network/token_storage.dart';
 import '../addresses/addresses_controller.dart';
 import '../cart/cart_controller.dart';
+import '../chat/chat_controllers.dart';
 import '../checkout/checkout_controllers.dart';
 import '../discovery/discovery_controllers.dart';
 import '../notifications/notifications_controller.dart';
@@ -64,4 +65,6 @@ void clearUserScopedProviders(WidgetRef ref) {
   ref.invalidate(recentlyViewedProvider);
   ref.invalidate(recentSearchesProvider);
   ref.invalidate(notificationsControllerProvider);
+  ref.invalidate(conversationsProvider);
+  ref.invalidate(supportContactsProvider);
 }

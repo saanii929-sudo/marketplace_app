@@ -11,6 +11,22 @@ class ApiException implements Exception {
   factory ApiException.fromDioException(DioException e) {
     final data = e.response?.data;
     if (data is Map) {
+      // This backend's custom exception handler wraps validation errors as
+      // `{"detail": "Validation error", "errors": {"field": ["specific
+      // message"]}}` — `detail` is a generic label in that shape, so the
+      // real per-field message in `errors` must be checked first.
+      final errors = data['errors'];
+      if (errors is Map) {
+        for (final value in errors.values) {
+          if (value is List && value.isNotEmpty && value.first is String) {
+            return ApiException(value.first as String);
+          }
+          if (value is String && value.isNotEmpty) {
+            return ApiException(value);
+          }
+        }
+      }
+
       final detail = data['detail'];
       if (detail is String && detail.isNotEmpty) return ApiException(detail);
 
@@ -23,13 +39,19 @@ class ApiException implements Exception {
         }
       }
     }
-    if (data is String && data.isNotEmpty) return ApiException(data);
+    // A plain-text/JSON error body is safe to surface directly, but a
+    // non-DRF failure (e.g. an unhandled server exception) can come back as
+    // a full HTML debug page — never show that raw markup to the user.
+    if (data is String && data.isNotEmpty && !data.trimLeft().startsWith('<')) {
+      return ApiException(data);
+    }
 
     return switch (e.type) {
       DioExceptionType.connectionTimeout ||
       DioExceptionType.sendTimeout ||
       DioExceptionType.receiveTimeout => const ApiException('The connection timed out. Please try again.'),
       DioExceptionType.connectionError => const ApiException('No connection. Check your internet and try again.'),
+      DioExceptionType.badResponse => const ApiException('Something went wrong on our end. Please try again.'),
       _ => ApiException(e.message ?? 'Something went wrong. Please try again.'),
     };
   }

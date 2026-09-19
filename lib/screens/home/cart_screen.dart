@@ -4,21 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/mock_catalog.dart' show formatPrice;
 import '../../features/cart/cart.dart';
 import '../../features/cart/cart_controller.dart';
+import '../../features/catalog/catalog_controllers.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/buttons/app_button.dart';
 import '../../widgets/cards/app_card.dart';
+import '../../widgets/home/network_image_box.dart';
 import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 import 'checkout_screen.dart';
 
-/// Cart tab: line items with quantity controls, a real promo code, an
-/// order summary, and checkout — all backed by `GET /cart/`. Shows an
-/// empty state when the cart is bare.
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key, required this.onStartShopping});
 
@@ -126,8 +125,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     : ListView(
                         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                         children: [
-                          for (final item in cart.items) _CartLineTile(item: item, onQtyChanged: _updateQty),
-                          const SizedBox(height: AppSpacing.md),
+                          for (final item in cart.items) ...[
+                            _CartLineTile(item: item, onQtyChanged: _updateQty),
+                            const Divider(),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
                           Row(
                             children: [
                               Expanded(
@@ -225,24 +227,31 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 }
 
-class _CartLineTile extends StatelessWidget {
+class _CartLineTile extends ConsumerWidget {
   const _CartLineTile({required this.item, required this.onQtyChanged});
   final CartItem item;
   final void Function(CartItem item, int qty) onQtyChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = item.productSlug.isNotEmpty ? ref.watch(productDetailProvider(item.productSlug)) : null;
+    final imageUrl = detailAsync?.value?.images.isNotEmpty == true ? detailAsync!.value!.images.first.url : '';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
+          SizedBox(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(color: AppColors.neutral100, borderRadius: BorderRadius.circular(AppRadius.md)),
-            alignment: Alignment.center,
-            child: const Icon(Icons.shopping_bag_outlined, color: AppColors.neutral400),
+            child: detailAsync != null && detailAsync.isLoading
+                ? const ShimmerBox(width: 64, height: 64, borderRadius: AppRadius.md)
+                : NetworkImageBox(
+                    url: imageUrl,
+                    fallbackIcon: Icons.shopping_bag_outlined,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

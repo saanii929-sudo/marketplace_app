@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../features/auth/auth_controller.dart';
+import '../../features/auth/phone_utils.dart';
 import '../../features/auth/session.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
@@ -51,7 +52,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final identifier = _emailController.text.trim();
+    final identifier = _identifierMode == 0
+        ? _emailController.text.trim()
+        : normalizeGhanaPhone(_emailController.text);
     setState(() => _loading = true);
     try {
       await ref

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/auth_controller.dart';
+import '../../features/auth/phone_utils.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -35,7 +36,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final destination = _contactController.text.trim();
+    final destination = _identifierMode == 0
+        ? _contactController.text.trim()
+        : normalizeGhanaPhone(_contactController.text);
     setState(() => _loading = true);
     try {
       await ref.read(authControllerProvider.notifier).forgotPassword(destination: destination);

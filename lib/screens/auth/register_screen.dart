@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/auth_controller.dart';
+import '../../features/auth/phone_utils.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -62,8 +63,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => _termsError = !_acceptedTerms);
     if (!formValid || !_acceptedTerms) return;
 
-    final identifier = _emailController.text.trim();
     final isEmail = _identifierMode == 0;
+    final identifier = isEmail ? _emailController.text.trim() : normalizeGhanaPhone(_emailController.text);
 
     setState(() => _loading = true);
     try {
@@ -74,10 +75,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         fullName: _nameController.text.trim(),
         password: _passwordController.text,
       );
-      // Log in right away so the account-setup screen (avatar/interests)
-      // has a valid session — the register endpoint itself returns no
-      // tokens, only account fields.
-      await auth.login(identifier: identifier, password: _passwordController.text);
+      // The account isn't verified yet, so logging in here would fail —
+      // OTP verification itself establishes the session (see
+      // AuthApi.verifyOtp), which is why this goes straight to
+      // VerificationScreen instead of logging in first.
       await auth.sendOtp(destination: identifier, purpose: 'signup_verify');
       if (!mounted) return;
       Navigator.of(context).push(

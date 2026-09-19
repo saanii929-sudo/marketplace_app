@@ -2,21 +2,50 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/catalog/catalog_controllers.dart';
+import '../../features/chat/chat_controllers.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/badges/app_badge.dart';
 import '../../widgets/buttons/app_back_button.dart';
+import '../../widgets/buttons/app_button.dart';
 import '../../widgets/home/network_image_box.dart';
 import '../../widgets/home/product_tile.dart';
+import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
+import 'chat_screen.dart';
 
 class SellerProfileScreen extends ConsumerWidget {
   const SellerProfileScreen({super.key, required this.slug});
 
   final String slug;
+
+  Future<void> _messageSeller(BuildContext context, WidgetRef ref, String businessName, String logo) async {
+    try {
+      final conversation = await ref
+          .read(chatApiProvider)
+          .startConversation(kind: 'customer_seller', sellerSlug: slug);
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            conversationId: conversation.id,
+            title: businessName,
+            avatarUrl: logo,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.show(
+        context,
+        e is ApiException ? e.message : 'Couldn\'t start a chat right now. Please try again.',
+        tone: AppToastTone.error,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -109,6 +138,14 @@ class SellerProfileScreen extends ConsumerWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                label: 'Message seller',
+                icon: Icons.chat_bubble_outline,
+                variant: AppButtonVariant.secondary,
+                expand: false,
+                onPressed: () => _messageSeller(context, ref, seller.businessName, seller.logo),
+              ),
               const SizedBox(height: AppSpacing.xl),
               const Divider(),
               const SizedBox(height: AppSpacing.lg),
@@ -149,33 +186,30 @@ class _SellerProfileShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppBackButton(onTap: () => Navigator.of(context).pop()),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              const ShimmerBox(width: 64, height: 64, borderRadius: AppRadius.lg),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ShimmerBox(width: 160, height: 20),
-                    const SizedBox(height: AppSpacing.sm),
-                    ShimmerBox(width: 100, height: 14),
-                  ],
-                ),
+      children: [
+        AppBackButton(onTap: () => Navigator.of(context).pop()),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            const ShimmerBox(width: 64, height: 64, borderRadius: AppRadius.lg),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ShimmerBox(width: 160, height: 20),
+                  const SizedBox(height: AppSpacing.sm),
+                  ShimmerBox(width: 100, height: 14),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          const ProductGridShimmer(),
-        ],
-      ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        const ProductGridShimmer(),
+      ],
     );
   }
 }

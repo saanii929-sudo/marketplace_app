@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +7,8 @@ import '../../features/addresses/addresses_controller.dart';
 import '../../features/cart/cart.dart';
 import '../../features/cart/cart_controller.dart';
 import '../../features/checkout/checkout_controllers.dart';
+import '../../features/checkout/delivery_method.dart';
+import '../../features/orders/orders_controllers.dart';
 import '../../features/payments/payment_method.dart';
 import '../../features/payments/payments_controller.dart';
 import '../../network/api_exception.dart';
@@ -19,26 +19,13 @@ import '../../widgets/buttons/app_back_button.dart';
 import '../../widgets/buttons/app_button.dart';
 import '../../widgets/cards/app_card.dart';
 import '../../widgets/cards/payment_card_logo.dart';
-import '../../widgets/states/confirmation_state.dart';
+import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 import 'add_payment_method_screen.dart';
 import 'address_form_screen.dart';
+import 'hubtel_payment_screen.dart';
 import 'order_detail_screen.dart';
-
-class _DeliveryOption {
-  const _DeliveryOption({
-    required this.label,
-    required this.subtitle,
-    required this.price,
-  });
-  final String label;
-  final String subtitle;
-  final double price;
-}
-
-const _freeDeliveryThreshold = 500.0;
-const _expressDeliveryFee = 35.0;
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -48,79 +35,91 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
-  /// Selected address/payment method ids, resolved lazily once each real
-  /// list loads (defaulting to whichever the account has marked default).
   int? _selectedAddressId;
+  int? _selectedDeliveryMethodId;
   int? _selectedPaymentId;
-  int _selectedDelivery = 0;
   bool _placingOrder = false;
-  bool _orderPlaced = false;
-  String _orderId = '';
-  List<Product> _orderItems = [];
-  double _orderTotal = 0;
-
-  List<_DeliveryOption> _deliveryOptions(double subtotal) => [
-    _DeliveryOption(
-      label: 'Standard delivery',
-      subtitle: '3–5 business days',
-      price: subtotal >= _freeDeliveryThreshold ? 0 : 20,
-    ),
-    const _DeliveryOption(
-      label: 'Express delivery',
-      subtitle: '1–2 business days',
-      price: _expressDeliveryFee,
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
-    // Always fetch a fresh summary when Checkout opens, rather than reusing
-    // a cached read from a previous visit.
     Future.microtask(() => ref.invalidate(checkoutSummaryProvider));
   }
 
-  Future<void> _placeOrder(Cart cart) async {
+  Future<void> _placeOrder() async {
+    if (_selectedAddressId == null || _selectedDeliveryMethodId == null || _selectedPaymentId == null) {
+      AppToast.show(
+        context,
+        'Please choose a delivery address, delivery method and payment method.',
+        tone: AppToastTone.error,
+      );
+      return;
+    }
     setState(() => _placingOrder = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() {
-      _orderId = 'ST-${10000 + Random().nextInt(90000)}';
-      _orderItems = cart.items
-          .map(
-            (line) => Product(
-              id: line.productId.toString(),
-              name: line.productName,
-              brand: '',
-              category: '',
-              subcategory: '',
-              price: line.unitPrice,
-              rating: 0,
-              reviewCount: 0,
-              icon: Icons.shopping_bag_outlined,
-              imageUrl: '',
-              description: '',
-              slug: line.productSlug,
-            ),
-          )
-          .toList();
-      _orderTotal = cart.total;
-      _placingOrder = false;
-      _orderPlaced = true;
-    });
-    await ref.read(cartControllerProvider.notifier).clear();
+    try {
+      final result = await ref
+          .read(ordersApiProvider)
+          .place(
+            addressId: _selectedAddressId!,
+            deliveryMethodId: _selectedDeliveryMethodId!,
+            paymentMethodId: _selectedPaymentId!,
+          );
+      // The order is created server-side (and the cart consumed) the moment
+      // this call succeeds, regardless of whether payment has actually
+      // cleared yet — `order` on the response is only populated once it has.
+      await ref.read(cartControllerProvider.notifier).clear();
+      ref.invalidate(ordersProvider);
+      if (!mounted) return;
+
+      final resolvedOrder = result.order;
+      if (resolvedOrder != null) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => OrderDetailScreen(orderNumber: resolvedOrder.orderNumber)),
+          (route) => false,
+        );
+      } else if (result.checkoutUrl.isNotEmpty) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => HubtelPaymentScreen(reference: result.reference)),
+          (route) => false,
+        );
+      } else {
+        AppToast.show(
+          context,
+          result.failureReason.isNotEmpty ? result.failureReason : 'Your order couldn\'t be placed. Please try again.',
+          tone: AppToastTone.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        e is ApiException ? e.message : 'Couldn\'t place your order. Please try again.',
+        tone: AppToastTone.error,
+      );
+    } finally {
+      if (mounted) setState(() => _placingOrder = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final cartAsync = ref.watch(cartControllerProvider);
-    final itemCount = _orderPlaced ? _orderItems.length : (cartAsync.value?.itemCount ?? 0);
+    final itemCount = cartAsync.value?.itemCount ?? 0;
+
     final addressesAsync = ref.watch(addressesControllerProvider);
     addressesAsync.whenData((addresses) {
       if (_selectedAddressId == null && addresses.isNotEmpty) {
         final defaultAddress = addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) setState(() => _selectedAddressId = defaultAddress.id);
+        });
+      }
+    });
+    final deliveryMethodsAsync = ref.watch(deliveryMethodsProvider);
+    deliveryMethodsAsync.whenData((methods) {
+      if (_selectedDeliveryMethodId == null && methods.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _selectedDeliveryMethodId = methods.first.id);
         });
       }
     });
@@ -164,14 +163,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
-            if (_orderPlaced)
-              _OrderPlacedView(
-                orderId: _orderId,
-                items: _orderItems,
-                total: _orderTotal,
-              )
-            else
-              _buildForm(cartAsync, addressesAsync, paymentMethodsAsync),
+            _buildForm(cartAsync, addressesAsync, deliveryMethodsAsync, paymentMethodsAsync),
           ],
         ),
       ),
@@ -181,9 +173,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildForm(
     AsyncValue<Cart> cartAsync,
     AsyncValue<List<Address>> addressesAsync,
+    AsyncValue<List<DeliveryMethod>> deliveryMethodsAsync,
     AsyncValue<List<PaymentMethod>> paymentMethodsAsync,
   ) {
-    final deliveryOptions = _deliveryOptions(cartAsync.value?.subtotal ?? 0);
     final summaryAsync = ref.watch(checkoutSummaryProvider);
 
     return Column(
@@ -229,44 +221,52 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         const SizedBox(height: AppSpacing.lg),
         _SectionLabel('Delivery method'),
         const SizedBox(height: AppSpacing.sm),
-        for (var i = 0; i < deliveryOptions.length; i++) ...[
-          _SelectableTile(
-            selected: i == _selectedDelivery,
-            onTap: () => setState(() => _selectedDelivery = i),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        deliveryOptions[i].label,
-                        style: AppTypography.bodyLarge.copyWith(
-                          fontWeight: FontWeight.w700,
+        deliveryMethodsAsync.when(
+          loading: () => const ShimmerBox(width: double.infinity, height: 72, borderRadius: AppRadius.lg),
+          error: (error, _) => ErrorState(
+            title: 'Something went wrong',
+            message: error is ApiException ? error.message : 'Couldn\'t load delivery methods.',
+            onRetry: () => ref.invalidate(deliveryMethodsProvider),
+          ),
+          data: (methods) => methods.isEmpty
+              ? Text(
+                  'No delivery methods available yet.',
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral500),
+                )
+              : Column(
+                  children: [
+                    for (final method in methods) ...[
+                      _SelectableTile(
+                        selected: method.id == _selectedDeliveryMethodId,
+                        onTap: () => setState(() => _selectedDeliveryMethodId = method.id),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(method.name, style: AppTypography.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
+                                  Text(
+                                    '${method.etaDaysMin}–${method.etaDaysMax} business days',
+                                    style: AppTypography.caption,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              method.price == 0 ? 'Free' : formatPrice(method.price),
+                              style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        deliveryOptions[i].subtitle,
-                        style: AppTypography.caption,
-                      ),
+                      const SizedBox(height: AppSpacing.sm),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  deliveryOptions[i].price == 0
-                      ? 'Free*'
-                      : formatPrice(deliveryOptions[i].price),
-                  style: AppTypography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
+        ),
         const SizedBox(height: AppSpacing.lg),
         _SectionLabel('Payment method'),
         const SizedBox(height: AppSpacing.sm),
@@ -346,72 +346,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          '*Free standard delivery on orders over ${formatPrice(_freeDeliveryThreshold)}.',
-          style: AppTypography.caption,
-        ),
         const SizedBox(height: AppSpacing.lg),
         AppButton(
           label: 'Place order${summaryAsync.value != null ? ' · ${formatPrice(summaryAsync.value!.total)}' : ''}',
           loading: _placingOrder,
-          onPressed: (cartAsync.value == null || cartAsync.value!.items.isEmpty)
-              ? null
-              : () => _placeOrder(cartAsync.value!),
+          onPressed: (cartAsync.value == null || cartAsync.value!.items.isEmpty) ? null : _placeOrder,
         ),
       ],
-    );
-  }
-}
-
-class _OrderPlacedView extends StatelessWidget {
-  const _OrderPlacedView({
-    required this.orderId,
-    required this.items,
-    required this.total,
-  });
-  final String orderId;
-  final List<Product> items;
-  final double total;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-      child: Column(
-        children: [
-          const SizedBox(height: AppSpacing.xxl),
-          SizedBox(
-            width: double.infinity,
-            child: ConfirmationState(
-              title: 'Order placed',
-              message:
-                  "Order $orderId is confirmed. We'll email you as soon as it ships.",
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          AppButton(
-            label: 'Track this order',
-            expand: false,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => OrderDetailScreen(
-                  orderNumber: orderId,
-                  localPreview: LocalOrderPreview(items: items, total: total),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppButton(
-            label: 'Continue shopping',
-            variant: AppButtonVariant.secondary,
-            expand: false,
-            onPressed: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
-          ),
-        ],
-      ),
     );
   }
 }

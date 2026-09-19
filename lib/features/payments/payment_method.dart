@@ -26,7 +26,8 @@ class PaymentMethod {
     final b = brand.toLowerCase();
     if (b.contains('visa')) return PaymentType.visa;
     if (b.contains('master')) return PaymentType.mastercard;
-    if (gateway.toLowerCase().contains('momo') || b.contains('momo')) return PaymentType.momo;
+    final g = gateway.toLowerCase();
+    if (g.contains('momo') || g.contains('hubtel') || b.contains('momo')) return PaymentType.momo;
     return PaymentType.other;
   }
 

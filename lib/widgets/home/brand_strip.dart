@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../features/catalog/product.dart';
+import '../../screens/home/brand_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../overlays/app_toast.dart';
 
 /// Horizontal "Shop by Brand" strip — backed by `brands` from
 /// `GET discovery/home/`.
@@ -47,7 +47,9 @@ class _BrandChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => AppToast.show(context, brand.name),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => BrandScreen(slug: brand.slug)),
+      ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
