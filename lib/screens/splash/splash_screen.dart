@@ -7,6 +7,7 @@ import '../../theme/app_typography.dart';
 import '../../widgets/misc/illustrations.dart';
 import '../home/home_shell.dart';
 import '../onboarding/welcome_screen.dart';
+import '../riders/rider_home_shell.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -30,9 +31,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   }
 
   Future<void> _resolveAndNavigate() async {
-    // Runs the session check and the minimum splash display time together,
-    // so a fast (or cached) check never makes the splash flash by too
-    // quickly, and a slow one never holds it beyond what the check needs.
     final results = await Future.wait([
       resolveSessionStatus(ref),
       Future<void>.delayed(const Duration(milliseconds: 1800)),
@@ -42,8 +40,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
     Widget destination = switch (status) {
       SessionStatus.authenticatedCustomer => const HomeShell(),
+      SessionStatus.authenticatedRider => const RiderHomeShell(),
       SessionStatus.wrongRole => const WelcomeScreen(
-        notice: 'This app is for customer accounts only. Please sign in with a customer account.',
+        notice: 'We couldn\'t sign you in. Please sign in again.',
       ),
       SessionStatus.unauthenticated => const WelcomeScreen(),
     };

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/phone_utils.dart';
@@ -13,39 +12,28 @@ import '../../widgets/buttons/app_back_button.dart';
 import '../../widgets/buttons/app_button.dart';
 import '../../widgets/inputs/app_text_field.dart';
 import '../../widgets/layout/responsive_center.dart';
-import '../../widgets/buttons/social_sign_in_row.dart';
 import '../../widgets/navigation/segmented_tabs.dart';
 import '../../widgets/overlays/app_toast.dart';
-import '../home/home_shell.dart';
-import 'forgot_password_screen.dart';
-import 'register_screen.dart';
-import 'verification_screen.dart';
+import 'rider_home_shell.dart';
+import 'rider_register_screen.dart';
 
-/// The given API has no structured error code for "account exists but
-/// isn't verified yet" — this is a best-effort match on the login error
-/// message's wording, since that's all the backend surfaces.
-bool _looksLikeUnverifiedError(String message) {
-  final m = message.toLowerCase();
-  return m.contains('not verified') || m.contains('not been verified') || m.contains('please verify') || m.contains('verify your');
-}
-
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class RiderLoginScreen extends ConsumerStatefulWidget {
+  const RiderLoginScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<RiderLoginScreen> createState() => _RiderLoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
-  int _identifierMode = 0; // 0 = email, 1 = phone
+  int _identifierMode = 0; // 0 = phone, 1 = email
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -53,8 +41,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final identifier = _identifierMode == 0
-        ? _emailController.text.trim()
-        : normalizeGhanaPhone(_emailController.text);
+        ? normalizeGhanaPhone(_identifierController.text)
+        : _identifierController.text.trim();
     setState(() => _loading = true);
     try {
       await ref
@@ -63,51 +51,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final status = await resolveSessionStatus(ref);
       if (!mounted) return;
       switch (status) {
-        case SessionStatus.authenticatedCustomer:
+        case SessionStatus.authenticatedRider:
           Navigator.of(
             context,
-          ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const HomeShell()), (route) => false);
-        case SessionStatus.authenticatedRider:
+          ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const RiderHomeShell()), (route) => false);
+        case SessionStatus.authenticatedCustomer:
           AppToast.show(
             context,
-            'This is a rider account — continue as a rider instead.',
+            'This is a customer account — continue as a customer instead.',
             tone: AppToastTone.error,
           );
         case SessionStatus.wrongRole:
-          AppToast.show(
-            context,
-            'This app is for customer accounts only. Please sign in with a customer account.',
-            tone: AppToastTone.error,
-          );
+          AppToast.show(context, 'Couldn\'t sign you in with this account.', tone: AppToastTone.error);
         case SessionStatus.unauthenticated:
           AppToast.show(context, 'Couldn\'t confirm your account. Please try again.', tone: AppToastTone.error);
       }
     } catch (e) {
       if (!mounted) return;
-      if (e is ApiException && _looksLikeUnverifiedError(e.message)) {
-        await _redirectToVerification(identifier);
-        return;
-      }
       AppToast.show(context, e is ApiException ? e.message : 'Couldn\'t log in. Please try again.', tone: AppToastTone.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  /// The account exists but isn't verified — send a fresh code and take
-  /// the user straight to the same verification flow used right after
-  /// registration, instead of just showing the error as a toast.
-  Future<void> _redirectToVerification(String identifier) async {
-    try {
-      await ref.read(authControllerProvider.notifier).sendOtp(destination: identifier, purpose: 'signup_verify');
-    } catch (_) {
-      // Best-effort — the verification screen's own "Resend code" lets the
-      // user retry if this send failed.
-    }
-    if (!mounted) return;
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => VerificationScreen(contact: identifier, isRegistration: true)));
   }
 
   @override
@@ -116,7 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        backgroundColor: Color(0xFFF6F4EE),
+        backgroundColor: const Color(0xFFF6F4EE),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
@@ -128,29 +92,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     AppBackButton(onTap: () => Navigator.of(context).pop()),
                     const SizedBox(height: AppSpacing.lg),
-                    Text('Welcome back', style: GoogleFonts.caladea(fontSize: 32, fontWeight: FontWeight.bold)),
+                    Text('Welcome back, rider', style: AppTypography.h1),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Log in to pick up your gear where you left off.',
+                      'Log in to go online and start picking up deliveries.',
                       style: AppTypography.bodyLarge.copyWith(color: AppColors.neutral500),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     SegmentedTabs(
-                      labels: const ['Email', 'Phone'],
+                      labels: const ['Phone', 'Email'],
                       selectedIndex: _identifierMode,
                       onChanged: (i) => setState(() => _identifierMode = i),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     AppTextField(
                       key: ValueKey(_identifierMode),
-                      label: _identifierMode == 0 ? 'Email address' : 'Phone number',
-                      controller: _emailController,
-                      hint: _identifierMode == 0 ? 'you@example.com' : '+1 234 567 8900',
-                      keyboardType: _identifierMode == 0 ? TextInputType.emailAddress : TextInputType.phone,
+                      label: _identifierMode == 0 ? 'Phone number' : 'Email address',
+                      controller: _identifierController,
+                      hint: _identifierMode == 0 ? '024 000 0000' : 'you@example.com',
+                      keyboardType: _identifierMode == 0 ? TextInputType.phone : TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       autofillHints: const [AutofillHints.username],
                       validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Enter your ${_identifierMode == 0 ? 'email address' : 'phone number'}'
+                          ? 'Enter your ${_identifierMode == 0 ? 'phone number' : 'email address'}'
                           : null,
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -163,34 +127,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       autofillHints: const [AutofillHints.password],
                       validator: (v) => (v == null || v.length < 6) ? 'Password must be at least 6 characters' : null,
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
-                        ),
-                        child: const Text('Forgot password?'),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    AppButton(label: 'Log in', loading: _loading, onPressed: _submit),
                     const SizedBox(height: AppSpacing.xl),
-                    const SocialSignInRow(),
+                    AppButton(label: 'Log in', loading: _loading, onPressed: _submit),
                     const SizedBox(height: AppSpacing.xxl),
                     Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Don\'t have an account? ',
+                            'New to SportTech Rider? ',
                             style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral500),
                           ),
                           GestureDetector(
                             onTap: () => Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                              MaterialPageRoute(builder: (_) => const RiderRegisterScreen()),
                             ),
                             child: Text(
-                              'Create one',
+                              'Sign up',
                               style: AppTypography.bodyMedium.copyWith(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w700,

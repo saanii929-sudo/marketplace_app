@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../theme/app_typography.dart';
 import '../../widgets/buttons/app_button.dart';
 import '../../widgets/layout/responsive_center.dart';
 import '../../widgets/misc/illustrations.dart';
 import '../../widgets/overlays/app_modal.dart';
 import '../../widgets/overlays/app_toast.dart';
 import '../auth/login_screen.dart';
-import '../auth/register_screen.dart';
 import '../home/home_shell.dart';
+import '../riders/rider_login_screen.dart';
 import 'onboarding_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key, this.notice});
 
-  /// Shown once as a toast after the first frame — used to explain why the
-  /// user landed back here (e.g. a non-customer session was signed out).
   final String? notice;
 
   @override
@@ -73,24 +69,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                const HeroIllustration(icon: Icons.sports_soccer, height: 240),
-                const SizedBox(height: AppSpacing.xxl),
-                Text('Shop. Train.\nPerform.', style: AppTypography.display),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'The fastest marketplace for authentic sporting gear — from trusted sellers, delivered to your door.',
-                  style: AppTypography.bodyLarge.copyWith(color: AppColors.neutral500),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
                 AppButton(
-                  label: 'Create account',
+                  label: 'Continue as rider',
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    MaterialPageRoute(builder: (_) => const RiderLoginScreen()),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 AppButton(
-                  label: 'Log in',
+                  label: 'Continue as customer',
                   variant: AppButtonVariant.secondary,
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -98,7 +85,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 AppButton(
-                  label: 'Continue as guest',
+                  label: 'Continue as a guest',
                   variant: AppButtonVariant.ghost,
                   onPressed: () => _continueAsGuest(context),
                 ),

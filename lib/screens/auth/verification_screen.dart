@@ -20,10 +20,16 @@ const _kOtpLength = 6;
 const _signupPurpose = 'signup_verify';
 
 class VerificationScreen extends ConsumerStatefulWidget {
-  const VerificationScreen({super.key, required this.contact, required this.isRegistration});
+  const VerificationScreen({super.key, required this.contact, required this.isRegistration, this.onVerified});
 
   final String contact;
   final bool isRegistration;
+
+  /// Where to land after a successful registration verification — defaults
+  /// to the customer `AccountSetupScreen`. Rider registration passes a
+  /// builder for the rider documents screen instead, so this one OTP
+  /// screen serves both signup flows.
+  final Widget Function(BuildContext context)? onVerified;
 
   @override
   ConsumerState<VerificationScreen> createState() => _VerificationScreenState();
@@ -82,7 +88,9 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           .read(authControllerProvider.notifier)
           .verifyOtp(destination: widget.contact, purpose: _signupPurpose, code: code);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AccountSetupScreen()));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: widget.onVerified ?? (_) => const AccountSetupScreen()),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _hasError = true);

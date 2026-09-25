@@ -18,6 +18,7 @@ import '../../widgets/home/search_bar_field.dart';
 import '../../widgets/home/seller_promo_row.dart';
 import '../../widgets/layout/responsive_center.dart';
 import '../../widgets/states/shimmer_box.dart';
+import 'send_package_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key, required this.onCategoryTap});
@@ -53,6 +54,11 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     error: (error, _) => const SizedBox.shrink(),
                     data: (home) => HeroCarousel(banners: home.banners),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: _SendPackageBanner(),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                   const _SectionTitle('Categories'),
@@ -125,6 +131,50 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SendPackageBanner extends StatelessWidget {
+  const _SendPackageBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SendPackageScreen())),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(AppRadius.lg)),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: AppColors.neutral700, borderRadius: BorderRadius.circular(AppRadius.md)),
+              child: const Icon(Icons.inventory_2_outlined, size: 20, color: AppColors.white),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Send a package',
+                    style: AppTypography.bodyLarge.copyWith(color: AppColors.white, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Same-day courier for parcels & documents',
+                    style: AppTypography.bodySmall.copyWith(color: AppColors.primary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.neutral400),
           ],
         ),
       ),

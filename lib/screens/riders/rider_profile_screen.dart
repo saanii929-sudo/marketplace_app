@@ -3,37 +3,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/session.dart';
-import '../../features/cart/cart_controller.dart';
-import '../../features/orders/orders_controllers.dart';
 import '../../features/profile/profile_controller.dart';
-import '../../features/wishlist/wishlist_controller.dart';
+import '../../features/riders/riders_controllers.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../widgets/buttons/app_back_button.dart';
 import '../../widgets/cards/app_card.dart';
 import '../../widgets/cards/settings_tile.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
+import '../home/help_support_screen.dart';
 import '../onboarding/welcome_screen.dart';
-import 'addresses_screen.dart';
-import 'become_seller_screen.dart';
-import 'conversations_screen.dart';
-import 'edit_profile_screen.dart';
-import 'help_support_screen.dart';
-import 'my_packages_screen.dart';
-import 'orders_screen.dart';
-import 'payment_methods_screen.dart';
+import 'rider_bank_screen.dart';
+import 'rider_documents_view_screen.dart';
+import 'rider_ratings_screen.dart';
+import 'rider_vehicle_screen.dart';
 
-class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
+/// Rider profile — reuses the same `/accounts/me/` call and
+/// [profileControllerProvider] the customer app uses (an account's profile
+/// isn't role-specific), including its own `date_joined` for "Rider since"
+/// instead of a dedicated endpoint. Deliveries count comes from the real
+/// earnings summary's `total_trips`. There's no given "acceptance rate"
+/// endpoint, so that stat card is dropped rather than fabricated.
+class RiderProfileScreen extends ConsumerStatefulWidget {
+  const RiderProfileScreen({super.key});
 
-  Future<void> _editProfile(BuildContext context, WidgetRef ref) async {
-    final profile = ref.read(profileControllerProvider).value;
-    if (profile == null) return;
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditProfileScreen(profile: profile)));
-  }
+  @override
+  ConsumerState<RiderProfileScreen> createState() => _RiderProfileScreenState();
+}
+
+class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
+  // No given endpoint for rider notification preferences — these stay
+  // local-only UI state rather than a fabricated persisted setting.
+  bool _pushNotificationsEnabled = true;
+  bool _onlyAcceptTripsOver15 = false;
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
     await ref.read(authControllerProvider.notifier).logout();
@@ -45,8 +49,10 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileControllerProvider);
+    final earningsAsync = ref.watch(riderEarningsSummaryProvider);
+    final reviewSummaryAsync = ref.watch(riderReviewSummaryProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F4EE),
@@ -82,19 +88,21 @@ class ProfileScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          profile.fullName.isEmpty ? 'Your account' : profile.fullName,
-                          style: AppTypography.h3,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          profile.email.isEmpty ? profile.phone : profile.email,
-                          style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral500),
+                        Text(profile.fullName.isEmpty ? 'Rider' : profile.fullName, style: AppTypography.h3),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.star_rounded, size: 16, color: AppColors.warning),
+                            const SizedBox(width: 2),
+                            Text(
+                              reviewSummaryAsync.value?.average.toStringAsFixed(1) ?? '—',
+                              style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  AppBackButton(icon: Icons.edit_outlined, onTap: () => _editProfile(context, ref)),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl),
@@ -102,66 +110,46 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _StatCard(
-                      value: '${ref.watch(ordersProvider).value?.length ?? 0}',
-                      label: 'Orders',
+                      value: earningsAsync.value != null ? '${earningsAsync.value!.totalTrips}' : '—',
+                      label: 'Deliveries',
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _StatCard(
-                      value: '${ref.watch(wishlistControllerProvider).value?.length ?? 0}',
-                      label: 'Wishlist',
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  // No "my reviews" endpoint was given anywhere in the API
-                  // to back a real reviews count, so this shows cart items
-                  // instead rather than a placeholder that reads as "0".
-                  Expanded(
-                    child: _StatCard(
-                      value: '${ref.watch(cartControllerProvider).value?.itemCount ?? 0}',
-                      label: 'In cart',
-                    ),
-                  ),
+                  Expanded(child: _StatCard(value: _riderSince(profile.dateJoined), label: 'Rider since')),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
               AppCard(
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
                     SettingsTile(
-                      icon: Icons.shopping_bag_outlined,
-                      label: 'My orders',
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OrdersScreen())),
+                      icon: Icons.two_wheeler_outlined,
+                      label: 'Vehicle info',
+                      onTap: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RiderVehicleScreen())),
                     ),
                     const Divider(height: 1),
                     SettingsTile(
-                      icon: Icons.location_on_outlined,
-                      label: 'Saved addresses',
-                      onTap: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddressesScreen())),
+                      icon: Icons.description_outlined,
+                      label: 'Documents',
+                      onTap: () => Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute(builder: (_) => const RiderDocumentsViewScreen())),
                     ),
                     const Divider(height: 1),
                     SettingsTile(
                       icon: Icons.credit_card_outlined,
-                      label: 'Payment methods',
+                      label: 'Bank & MoMo',
                       onTap: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PaymentMethodsScreen())),
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RiderBankScreen())),
                     ),
                     const Divider(height: 1),
                     SettingsTile(
-                      icon: Icons.chat_bubble_outline,
-                      label: 'Messages',
+                      icon: Icons.star_border_rounded,
+                      label: 'Ratings & reviews',
                       onTap: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ConversationsScreen())),
-                    ),
-                    const Divider(height: 1),
-                    SettingsTile(
-                      icon: Icons.inventory_2_outlined,
-                      label: 'My packages',
-                      onTap: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyPackagesScreen())),
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RiderRatingsScreen())),
                     ),
                   ],
                 ),
@@ -175,30 +163,19 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.notifications_none_rounded,
                       label: 'Push notifications',
                       trailing: Switch(
-                        value: profile.pushNotificationsEnabled,
+                        value: _pushNotificationsEnabled,
                         activeTrackColor: AppColors.success,
-                        onChanged: (v) async {
-                          try {
-                            await ref.read(profileControllerProvider.notifier).setPushNotifications(v);
-                          } catch (_) {
-                            // The controller already reverts the optimistic
-                            // update on failure; nothing else to do here.
-                          }
-                        },
+                        onChanged: (v) => setState(() => _pushNotificationsEnabled = v),
                       ),
                     ),
                     const Divider(height: 1),
                     SettingsTile(
-                      icon: Icons.mail_outline,
-                      label: 'Email offers',
+                      icon: Icons.help_outline,
+                      label: 'Only accept trips over GH₵15',
                       trailing: Switch(
-                        value: profile.emailOffersEnabled,
+                        value: _onlyAcceptTripsOver15,
                         activeTrackColor: AppColors.success,
-                        onChanged: (v) async {
-                          try {
-                            await ref.read(profileControllerProvider.notifier).setEmailOffers(v);
-                          } catch (_) {}
-                        },
+                        onChanged: (v) => setState(() => _onlyAcceptTripsOver15 = v),
                       ),
                     ),
                   ],
@@ -207,22 +184,11 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.lg),
               AppCard(
                 padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    SettingsTile(
-                      icon: Icons.storefront_outlined,
-                      label: 'Become a seller',
-                      onTap: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BecomeSellerScreen())),
-                    ),
-                    const Divider(height: 1),
-                    SettingsTile(
-                      icon: Icons.help_outline,
-                      label: 'Help & support',
-                      onTap: () =>
-                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
-                    ),
-                  ],
+                child: SettingsTile(
+                  icon: Icons.help_outline,
+                  label: 'Help & support',
+                  onTap: () =>
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -242,6 +208,13 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
+String _riderSince(String isoDate) {
+  final date = DateTime.tryParse(isoDate);
+  if (date == null) return '—';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return '${months[date.month - 1]} \'${(date.year % 100).toString().padLeft(2, '0')}';
+}
+
 class _StatCard extends StatelessWidget {
   const _StatCard({required this.value, required this.label});
   final String value;
@@ -253,7 +226,7 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Column(
         children: [
-          Text(value, style: AppTypography.h2),
+          Text(value, style: AppTypography.h3),
           const SizedBox(height: 2),
           Text(
             label.toUpperCase(),
