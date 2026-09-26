@@ -13,7 +13,6 @@ import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 
-/// `POST riders/cash-out/` — {amount, payout_method_id}.
 class RiderCashOutScreen extends ConsumerStatefulWidget {
   const RiderCashOutScreen({super.key});
 

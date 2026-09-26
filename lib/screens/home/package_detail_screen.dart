@@ -208,6 +208,10 @@ class _PackageDetailScreenState extends ConsumerState<PackageDetailScreen> {
                       if (parcel.declaredValue != null)
                         _DetailRow(label: 'Declared value', value: formatPrice(parcel.declaredValue!)),
                       _DetailRow(label: 'Price', value: formatPrice(parcel.price)),
+                      _DetailRow(
+                        label: 'Payment',
+                        value: parcel.isCashOnPickup ? 'Cash on pickup' : 'Paid online',
+                      ),
                     ],
                   ),
                 ),

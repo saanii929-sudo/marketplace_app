@@ -6,14 +6,14 @@ import 'riders_api.dart';
 
 final ridersApiProvider = Provider<RidersApi>((ref) => RidersApi(ref.watch(dioProvider)));
 
-/// `null` means the rider hasn't set up their vehicle details yet.
 final riderVehicleProvider = FutureProvider<RiderVehicle?>((ref) => ref.read(ridersApiProvider).getVehicle());
 
 final riderVerificationStatusProvider = FutureProvider<RiderVerificationStatus?>(
   (ref) => ref.read(ridersApiProvider).getVerificationStatus(),
 );
 
-/// `null` means no delivery is currently in progress.
+final riderSettingsProvider = FutureProvider<RiderSettings>((ref) => ref.read(ridersApiProvider).getSettings());
+
 final riderActiveDeliveryProvider = FutureProvider<RiderDelivery?>(
   (ref) => ref.read(ridersApiProvider).getActiveDelivery(),
 );

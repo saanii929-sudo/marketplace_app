@@ -11,6 +11,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/cards/app_card.dart';
 import '../../widgets/cards/settings_tile.dart';
+import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 import '../home/help_support_screen.dart';
@@ -20,12 +21,6 @@ import 'rider_documents_view_screen.dart';
 import 'rider_ratings_screen.dart';
 import 'rider_vehicle_screen.dart';
 
-/// Rider profile — reuses the same `/accounts/me/` call and
-/// [profileControllerProvider] the customer app uses (an account's profile
-/// isn't role-specific), including its own `date_joined` for "Rider since"
-/// instead of a dedicated endpoint. Deliveries count comes from the real
-/// earnings summary's `total_trips`. There's no given "acceptance rate"
-/// endpoint, so that stat card is dropped rather than fabricated.
 class RiderProfileScreen extends ConsumerStatefulWidget {
   const RiderProfileScreen({super.key});
 
@@ -34,10 +29,42 @@ class RiderProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
-  // No given endpoint for rider notification preferences — these stay
-  // local-only UI state rather than a fabricated persisted setting.
-  bool _pushNotificationsEnabled = true;
-  bool _onlyAcceptTripsOver15 = false;
+  bool? _pushNotificationsOverride;
+  bool? _onlyAcceptTripsOver15Override;
+
+  Future<void> _setPushNotifications(bool value) async {
+    final previous = _pushNotificationsOverride;
+    setState(() => _pushNotificationsOverride = value);
+    try {
+      await ref.read(ridersApiProvider).updateSettings(pushNotificationsEnabled: value);
+      ref.invalidate(riderSettingsProvider);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _pushNotificationsOverride = previous);
+      AppToast.show(
+        context,
+        e is ApiException ? e.message : 'Couldn\'t update that setting. Please try again.',
+        tone: AppToastTone.error,
+      );
+    }
+  }
+
+  Future<void> _setOnlyAcceptTripsOver15(bool value) async {
+    final previous = _onlyAcceptTripsOver15Override;
+    setState(() => _onlyAcceptTripsOver15Override = value);
+    try {
+      await ref.read(ridersApiProvider).updateSettings(minTripValue: value ? 15 : 0);
+      ref.invalidate(riderSettingsProvider);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _onlyAcceptTripsOver15Override = previous);
+      AppToast.show(
+        context,
+        e is ApiException ? e.message : 'Couldn\'t update that setting. Please try again.',
+        tone: AppToastTone.error,
+      );
+    }
+  }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
     await ref.read(authControllerProvider.notifier).logout();
@@ -52,7 +79,7 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileControllerProvider);
     final earningsAsync = ref.watch(riderEarningsSummaryProvider);
-    final reviewSummaryAsync = ref.watch(riderReviewSummaryProvider);
+    final settingsAsync = ref.watch(riderSettingsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F4EE),
@@ -95,7 +122,7 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                             const Icon(Icons.star_rounded, size: 16, color: AppColors.warning),
                             const SizedBox(width: 2),
                             Text(
-                              reviewSummaryAsync.value?.average.toStringAsFixed(1) ?? '—',
+                              settingsAsync.value?.ratingAvg.toStringAsFixed(1) ?? '—',
                               style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w700),
                             ),
                           ],
@@ -112,6 +139,13 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                     child: _StatCard(
                       value: earningsAsync.value != null ? '${earningsAsync.value!.totalTrips}' : '—',
                       label: 'Deliveries',
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: _StatCard(
+                      value: settingsAsync.value?.formattedAcceptanceRate ?? '—',
+                      label: 'Acceptance',
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -163,9 +197,9 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                       icon: Icons.notifications_none_rounded,
                       label: 'Push notifications',
                       trailing: Switch(
-                        value: _pushNotificationsEnabled,
+                        value: _pushNotificationsOverride ?? settingsAsync.value?.pushNotificationsEnabled ?? true,
                         activeTrackColor: AppColors.success,
-                        onChanged: (v) => setState(() => _pushNotificationsEnabled = v),
+                        onChanged: settingsAsync.value == null ? null : _setPushNotifications,
                       ),
                     ),
                     const Divider(height: 1),
@@ -173,9 +207,10 @@ class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
                       icon: Icons.help_outline,
                       label: 'Only accept trips over GH₵15',
                       trailing: Switch(
-                        value: _onlyAcceptTripsOver15,
+                        value:
+                            _onlyAcceptTripsOver15Override ?? ((settingsAsync.value?.minTripValue ?? 0) > 0),
                         activeTrackColor: AppColors.success,
-                        onChanged: (v) => setState(() => _onlyAcceptTripsOver15 = v),
+                        onChanged: settingsAsync.value == null ? null : _setOnlyAcceptTripsOver15,
                       ),
                     ),
                   ],

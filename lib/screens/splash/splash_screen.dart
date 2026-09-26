@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/session.dart';
+import '../../features/riders/rider_session.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/misc/illustrations.dart';
 import '../home/home_shell.dart';
 import '../onboarding/welcome_screen.dart';
+import '../riders/rider_documents_screen.dart';
 import '../riders/rider_home_shell.dart';
+import '../riders/rider_verification_status_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -30,6 +33,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     _resolveAndNavigate();
   }
 
+  Future<Widget> _destinationFor(SessionStatus status) async {
+    switch (status) {
+      case SessionStatus.authenticatedCustomer:
+        return const HomeShell();
+      case SessionStatus.authenticatedRider:
+        final riderDestination = await resolveRiderEntryDestination(ref);
+        return switch (riderDestination) {
+          RiderEntryDestination.home => const RiderHomeShell(),
+          RiderEntryDestination.documentsNeeded => const RiderDocumentsScreen(),
+          RiderEntryDestination.verificationPending => const RiderVerificationStatusScreen(),
+        };
+      case SessionStatus.wrongRole:
+        return const WelcomeScreen(notice: 'We couldn\'t sign you in. Please sign in again.');
+      case SessionStatus.unauthenticated:
+        return const WelcomeScreen();
+    }
+  }
+
   Future<void> _resolveAndNavigate() async {
     final results = await Future.wait([
       resolveSessionStatus(ref),
@@ -37,15 +58,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     ]);
     if (!mounted) return;
     final status = results[0] as SessionStatus;
-
-    Widget destination = switch (status) {
-      SessionStatus.authenticatedCustomer => const HomeShell(),
-      SessionStatus.authenticatedRider => const RiderHomeShell(),
-      SessionStatus.wrongRole => const WelcomeScreen(
-        notice: 'We couldn\'t sign you in. Please sign in again.',
-      ),
-      SessionStatus.unauthenticated => const WelcomeScreen(),
-    };
+    final destination = await _destinationFor(status);
+    if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(

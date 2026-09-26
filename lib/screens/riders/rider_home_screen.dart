@@ -3,9 +3,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../data/mock_catalog.dart' show formatPrice;
+import '../../features/location/location_permission.dart';
 import '../../features/profile/profile_controller.dart';
 import '../../features/riders/rider_dispatch_socket.dart';
 import '../../features/riders/rider_models.dart';
@@ -18,12 +20,6 @@ import '../../theme/app_typography.dart';
 import '../../widgets/overlays/app_toast.dart';
 import 'rider_active_delivery_screen.dart';
 
-/// Rider home — online/offline toggle, today's stats, a decorative map
-/// placeholder, and live incoming-request dispatch over a WebSocket
-/// (`ws/riders/dispatch/?token=`). None of this was empirically verified
-/// against a live server at the time this was written — the backend was
-/// still deploying — so every parsed field degrades gracefully rather than
-/// crashing if something doesn't match.
 class RiderHomeScreen extends ConsumerStatefulWidget {
   const RiderHomeScreen({super.key});
 
@@ -35,17 +31,76 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
   bool _isOnline = false;
   bool _togglingOnline = false;
   bool _navigatedToActive = false;
+  bool _hydratedOnlineStatus = false;
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _socketSub;
+  Timer? _locationTimer;
 
   @override
   void dispose() {
     _socketSub?.cancel();
     _channel?.sink.close();
+    _locationTimer?.cancel();
     super.dispose();
   }
 
+  Future<void> _pingLocation() async {
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      await ref.read(ridersApiProvider).sendLocationPing(lat: position.latitude, lng: position.longitude);
+    } catch (_) {
+      // Best-effort — a single missed ping isn't worth surfacing to the rider.
+    }
+  }
+
+  /// No backend-enforced interval (confirmed by the backend dev) — 15s
+  /// errs toward freshness since nothing server-side expires a stale ping.
+  void _startLocationUpdates() {
+    _locationTimer?.cancel();
+    _pingLocation();
+    _locationTimer = Timer.periodic(const Duration(seconds: 15), (_) => _pingLocation());
+  }
+
+  void _stopLocationUpdates() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+  }
+
+  /// `GET riders/me/settings/` is the only way to know the rider's real
+  /// online status on launch (there's no dedicated GET for `riders/status/`
+  /// itself) — reconnect the dispatch socket if they were already online
+  /// going into this session.
+  void _hydrateOnlineStatus(bool isOnline) {
+    if (_hydratedOnlineStatus) return;
+    _hydratedOnlineStatus = true;
+    if (!isOnline) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      setState(() => _isOnline = true);
+      _connectDispatch();
+      if (await ensureLocationPermission()) {
+        _startLocationUpdates();
+      } else if (mounted) {
+        AppToast.show(
+          context,
+          'Turn on location access to keep receiving delivery requests.',
+          tone: AppToastTone.error,
+        );
+      }
+    });
+  }
+
   Future<void> _setOnline(bool value) async {
+    if (value) {
+      final hasPermission = await ensureLocationPermission();
+      if (!mounted) return;
+      if (!hasPermission) {
+        AppToast.show(context, 'Turn on location access to go online.', tone: AppToastTone.error);
+        return;
+      }
+    }
     setState(() => _togglingOnline = true);
     try {
       await ref.read(ridersApiProvider).setOnline(value);
@@ -56,9 +111,11 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
       });
       if (value) {
         _connectDispatch();
+        _startLocationUpdates();
       } else {
         _socketSub?.cancel();
         _channel?.sink.close();
+        _stopLocationUpdates();
       }
     } catch (e) {
       if (!mounted) return;
@@ -82,8 +139,6 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
       _onSocketEvent,
       onError: (_) {},
       onDone: () {
-        // Closes with 4001 (bad/missing token) or 4003 (no rider profile)
-        // per the backend spec — surface a toast rather than a silent hang.
         if (!mounted || !_isOnline) return;
         final code = channel.closeCode;
         if (code == 4001 || code == 4003) {
@@ -153,6 +208,7 @@ class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
     final profile = ref.watch(profileControllerProvider).value;
     final earningsAsync = ref.watch(riderEarningsSummaryProvider);
     final activeDeliveryAsync = ref.watch(riderActiveDeliveryProvider);
+    ref.watch(riderSettingsProvider).whenData((settings) => _hydrateOnlineStatus(settings.isOnline));
 
     activeDeliveryAsync.whenData((delivery) {
       if (delivery != null && !_navigatedToActive) {

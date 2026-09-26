@@ -75,6 +75,7 @@ void clearUserScopedProviders(WidgetRef ref) {
   ref.invalidate(supportContactsProvider);
   ref.invalidate(riderVehicleProvider);
   ref.invalidate(riderVerificationStatusProvider);
+  ref.invalidate(riderSettingsProvider);
   ref.invalidate(riderActiveDeliveryProvider);
   ref.invalidate(riderDeliveriesProvider);
   ref.invalidate(riderEarningsSummaryProvider);

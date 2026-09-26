@@ -18,9 +18,6 @@ import '../../widgets/overlays/app_toast.dart';
 
 enum _DeliveryPhase { toPickup, toCustomer }
 
-/// The pickup → dropoff walk for one real trip — `POST
-/// trips/{id}/confirm-pickup/`, then at dropoff `.../proof-of-delivery/`
-/// (the customer's code + a photo) followed by `.../complete/` to finalize.
 class RiderActiveDeliveryScreen extends ConsumerStatefulWidget {
   const RiderActiveDeliveryScreen({super.key, required this.delivery});
 
@@ -31,7 +28,11 @@ class RiderActiveDeliveryScreen extends ConsumerStatefulWidget {
 }
 
 class _RiderActiveDeliveryScreenState extends ConsumerState<RiderActiveDeliveryScreen> {
-  _DeliveryPhase _phase = _DeliveryPhase.toPickup;
+  /// Resuming after a restart can land mid-delivery — `picked_up`/
+  /// `heading_to_dropoff` should skip straight to the code-entry step
+  /// instead of re-showing "Confirm pickup".
+  late _DeliveryPhase _phase =
+      widget.delivery.isHeadingToPickup ? _DeliveryPhase.toPickup : _DeliveryPhase.toCustomer;
   final _codeController = TextEditingController();
   File? _proofPhoto;
   bool _confirming = false;
@@ -293,8 +294,6 @@ class _RiderActiveDeliveryScreenState extends ConsumerState<RiderActiveDeliveryS
   }
 }
 
-/// Writes each typed digit into a shared code buffer via [controller],
-/// keeping the 4 visual boxes but a single real text value to submit.
 class _CodeDigitBox extends StatefulWidget {
   const _CodeDigitBox({required this.index, required this.controller});
   final int index;

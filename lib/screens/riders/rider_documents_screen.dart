@@ -16,8 +16,6 @@ import '../../widgets/overlays/app_modal.dart';
 import '../../widgets/overlays/app_toast.dart';
 import 'rider_verification_status_screen.dart';
 
-/// Document upload for a new rider application — `POST riders/documents/`
-/// (multipart), one call per document.
 class RiderDocumentsScreen extends ConsumerStatefulWidget {
   const RiderDocumentsScreen({super.key});
 

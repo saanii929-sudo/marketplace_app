@@ -23,10 +23,6 @@ class RiderVehicleScreen extends ConsumerStatefulWidget {
 }
 
 class _RiderVehicleScreenState extends ConsumerState<RiderVehicleScreen> {
-  // The mockup shows a single "Make & model" field rather than two — the
-  // combined text is submitted as `vehicleMake`, leaving `vehicleModel`
-  // blank, since splitting it back apart on save would be fragile and
-  // neither field's real backend meaning is documented anyway.
   final _makeModelController = TextEditingController();
   final _plateController = TextEditingController();
   final _colorController = TextEditingController();

@@ -17,12 +17,13 @@ class ApiException implements Exception {
       // real per-field message in `errors` must be checked first.
       final errors = data['errors'];
       if (errors is Map) {
-        for (final value in errors.values) {
+        for (final entry in errors.entries) {
+          final value = entry.value;
           if (value is List && value.isNotEmpty && value.first is String) {
-            return ApiException(value.first as String);
+            return ApiException('${entry.key}: ${value.first}');
           }
           if (value is String && value.isNotEmpty) {
-            return ApiException(value);
+            return ApiException('${entry.key}: $value');
           }
         }
       }
@@ -30,12 +31,13 @@ class ApiException implements Exception {
       final detail = data['detail'];
       if (detail is String && detail.isNotEmpty) return ApiException(detail);
 
-      for (final value in data.values) {
+      for (final entry in data.entries) {
+        final value = entry.value;
         if (value is List && value.isNotEmpty && value.first is String) {
-          return ApiException(value.first as String);
+          return ApiException('${entry.key}: ${value.first}');
         }
         if (value is String && value.isNotEmpty) {
-          return ApiException(value);
+          return ApiException('${entry.key}: $value');
         }
       }
     }

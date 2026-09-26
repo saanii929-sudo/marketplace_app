@@ -157,7 +157,7 @@ class _FindingRiderScreenState extends ConsumerState<FindingRiderScreen> with Ti
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ink,
+      backgroundColor: AppColors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -169,25 +169,25 @@ class _FindingRiderScreenState extends ConsumerState<FindingRiderScreen> with Ti
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   _startError!,
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.white),
+                  style: AppTypography.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 AppButton(label: 'Try again', onPressed: _startSearch),
               ] else ...[
                 SizedBox(
-                  width: 260,
-                  height: 260,
+                  width: 300,
+                  height: 300,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      _Ring(controller: _outerController, radius: 120, dotCount: 6, dotSize: 14, onTapDot: _tapDot),
-                      _Ring(controller: _innerController, radius: 70, dotCount: 3, dotSize: 16, onTapDot: _tapDot),
+                      _Ring(controller: _outerController, radius: 130, dotCount: 6, dotSize: 26, onTapDot: _tapDot),
+                      _Ring(controller: _innerController, radius: 78, dotCount: 3, dotSize: 32, onTapDot: _tapDot),
                       Container(
-                        width: 56,
-                        height: 56,
+                        width: 64,
+                        height: 64,
                         decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                        child: const Icon(Icons.storefront_outlined, color: AppColors.white),
+                        child: const Icon(Icons.storefront_outlined, color: AppColors.white, size: 28),
                       ),
                     ],
                   ),
@@ -195,7 +195,7 @@ class _FindingRiderScreenState extends ConsumerState<FindingRiderScreen> with Ti
                 const SizedBox(height: AppSpacing.xxl),
                 Text(
                   'Finding your rider...',
-                  style: AppTypography.h2.copyWith(color: AppColors.white),
+                  style: AppTypography.h2,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -203,7 +203,7 @@ class _FindingRiderScreenState extends ConsumerState<FindingRiderScreen> with Ti
                   _slowNotice
                       ? 'This is taking longer than usual, but we\'re still looking.'
                       : 'We\'re matching you with a nearby rider — this usually takes under a minute.',
-                  style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral400),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral500),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -239,7 +239,7 @@ class _Ring extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.neutral700, width: 1),
+                border: Border.all(color: AppColors.neutral300, width: 1),
               ),
             ),
             for (var i = 0; i < dotCount; i++)
@@ -269,7 +269,7 @@ class _RingDot extends StatelessWidget {
           height: size,
           alignment: Alignment.center,
           decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-          child: Icon(Icons.pedal_bike, size: size * 0.6, color: AppColors.white),
+          child: Icon(Icons.pedal_bike, size: size * 0.65, color: AppColors.white),
         ),
       ),
     );

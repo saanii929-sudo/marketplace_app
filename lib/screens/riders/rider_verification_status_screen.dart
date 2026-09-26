@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/orders/order.dart' show humanizeStatus;
 import '../../features/riders/rider_models.dart';
 import '../../features/riders/riders_controllers.dart';
 import '../../network/api_exception.dart';
@@ -13,17 +12,12 @@ import '../../widgets/buttons/app_button.dart';
 import '../../widgets/states/error_state.dart';
 import 'rider_login_screen.dart';
 
-/// The real screen in the rider-onboarding tail: reads
-/// `GET /riders/verification-status/` for the overall status, and
-/// `GET riders/documents/` for the per-document breakdown if it's
-/// available yet.
 class RiderVerificationStatusScreen extends ConsumerWidget {
   const RiderVerificationStatusScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(riderVerificationStatusProvider);
-    final documentsAsync = ref.watch(riderDocumentsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F4EE),
@@ -58,27 +52,24 @@ class RiderVerificationStatusScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  status != null && status.status.isNotEmpty
-                      ? 'Status: ${humanizeStatus(status.status)}'
+                  status?.isApproved == true
+                      ? 'All documents verified.'
+                      : status?.isRejected == true
+                      ? 'One or more documents were rejected. Please check below and reupload.'
                       : 'This usually takes less than 24 hours. We\'ll notify you the moment you\'re approved to go online.',
                   style: AppTypography.bodyMedium.copyWith(color: AppColors.neutral500),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                documentsAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (error, _) => const SizedBox.shrink(),
-                  data: (documents) => documents.isEmpty
-                      ? const SizedBox.shrink()
-                      : Column(
-                          children: [
-                            for (final document in documents) ...[
-                              _DocumentStatusRow(document: document),
-                              const Divider(height: 1),
-                            ],
-                          ],
-                        ),
-                ),
+                if (status != null && status.documents.isNotEmpty)
+                  Column(
+                    children: [
+                      for (final document in status.documents) ...[
+                        _DocumentStatusRow(document: document),
+                        const Divider(height: 1),
+                      ],
+                    ],
+                  ),
                 const SizedBox(height: AppSpacing.xl),
                 AppButton(
                   label: 'Back to login',

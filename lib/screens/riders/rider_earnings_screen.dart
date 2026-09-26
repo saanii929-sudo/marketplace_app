@@ -15,8 +15,6 @@ import 'rider_cash_out_screen.dart';
 
 const _weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/// Earnings/wallet screen — `GET riders/earnings/summary/` and
-/// `GET riders/earnings/activity/`.
 class RiderEarningsScreen extends ConsumerWidget {
   const RiderEarningsScreen({super.key});
 

@@ -1,3 +1,9 @@
+double? _numOrNull(dynamic v) {
+  final s = v?.toString();
+  if (s == null || s.isEmpty) return null;
+  return double.tryParse(s);
+}
+
 class Address {
   const Address({
     required this.id,
@@ -10,6 +16,8 @@ class Address {
     required this.region,
     required this.country,
     required this.isDefault,
+    required this.lat,
+    required this.lng,
   });
 
   final int id;
@@ -22,6 +30,15 @@ class Address {
   final String region;
   final String country;
   final bool isDefault;
+
+  /// **Unconfirmed** — `accounts/addresses/` has never been verified to
+  /// accept or return `lat`/`lng`. Always nullable/defensive: if the
+  /// backend silently drops these, the app just falls back to GPS/manual
+  /// pin-per-booking instead of crashing or trusting a bogus 0.0 default.
+  final double? lat;
+  final double? lng;
+
+  bool get hasPin => lat != null && lng != null;
 
   String get fullAddress => [
     line1,
@@ -41,5 +58,7 @@ class Address {
     region: json['region'] as String? ?? '',
     country: json['country'] as String? ?? '',
     isDefault: json['is_default'] as bool? ?? false,
+    lat: _numOrNull(json['lat']),
+    lng: _numOrNull(json['lng']),
   );
 }

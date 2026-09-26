@@ -14,8 +14,6 @@ import '../../widgets/overlays/app_toast.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 
-/// Payout methods — `GET`/`POST riders/payout-methods/`,
-/// `POST riders/payout-methods/{id}/set-default/`.
 class RiderBankScreen extends ConsumerWidget {
   const RiderBankScreen({super.key});
 

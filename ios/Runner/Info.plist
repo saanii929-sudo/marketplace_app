@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SportTech Rider uses your location while you're online so customers and dispatch can see where you are for delivery matching.</string>
 </dict>
 </plist>

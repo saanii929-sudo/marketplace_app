@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/phone_utils.dart';
 import '../../features/auth/session.dart';
+import '../../features/riders/rider_session.dart';
 import '../../network/api_exception.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -14,8 +15,10 @@ import '../../widgets/inputs/app_text_field.dart';
 import '../../widgets/layout/responsive_center.dart';
 import '../../widgets/navigation/segmented_tabs.dart';
 import '../../widgets/overlays/app_toast.dart';
+import 'rider_documents_screen.dart';
 import 'rider_home_shell.dart';
 import 'rider_register_screen.dart';
+import 'rider_verification_status_screen.dart';
 
 class RiderLoginScreen extends ConsumerStatefulWidget {
   const RiderLoginScreen({super.key});
@@ -52,9 +55,18 @@ class _RiderLoginScreenState extends ConsumerState<RiderLoginScreen> {
       if (!mounted) return;
       switch (status) {
         case SessionStatus.authenticatedRider:
-          Navigator.of(
-            context,
-          ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const RiderHomeShell()), (route) => false);
+          final destination = await resolveRiderEntryDestination(ref);
+          if (!mounted) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => switch (destination) {
+                RiderEntryDestination.home => const RiderHomeShell(),
+                RiderEntryDestination.documentsNeeded => const RiderDocumentsScreen(),
+                RiderEntryDestination.verificationPending => const RiderVerificationStatusScreen(),
+              },
+            ),
+            (route) => false,
+          );
         case SessionStatus.authenticatedCustomer:
           AppToast.show(
             context,

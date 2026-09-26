@@ -14,8 +14,6 @@ import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 import 'rider_active_delivery_screen.dart';
 
-/// Trip history and active delivery — `GET riders/deliveries/active/` and
-/// `GET riders/deliveries/`.
 class RiderDeliveriesScreen extends ConsumerStatefulWidget {
   const RiderDeliveriesScreen({super.key});
 

@@ -12,6 +12,7 @@ import '../../widgets/buttons/app_back_button.dart';
 import '../../widgets/buttons/app_button.dart';
 import '../../widgets/inputs/app_text_field.dart';
 import '../../widgets/overlays/app_toast.dart';
+import 'map_location_picker_screen.dart';
 
 /// Add/edit form for a saved address — posts to
 /// `POST /accounts/addresses/` or `PUT /accounts/addresses/{id}/`.
@@ -36,6 +37,8 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   late final _regionController = TextEditingController(text: widget.existing?.region ?? '');
   late final _countryController = TextEditingController(text: widget.existing?.country ?? '');
   late bool _isDefault = widget.existing?.isDefault ?? false;
+  late double? _lat = widget.existing?.lat;
+  late double? _lng = widget.existing?.lng;
   bool _saving = false;
 
   bool get _isEditing => widget.existing != null;
@@ -53,6 +56,20 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     super.dispose();
   }
 
+  Future<void> _openMapPicker() async {
+    final result = await Navigator.of(context).push<(double, double)>(
+      MaterialPageRoute(
+        builder: (_) => MapLocationPickerScreen(initialLat: _lat, initialLng: _lng, title: 'Pin this address'),
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _lat = result.$1;
+        _lng = result.$2;
+      });
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -66,6 +83,8 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
       region: _regionController.text.trim(),
       country: _countryController.text.trim(),
       isDefault: _isDefault,
+      lat: _lat,
+      lng: _lng,
     );
     try {
       final controller = ref.read(addressesControllerProvider.notifier);
@@ -172,6 +191,32 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
                   controller: _countryController,
                   textInputAction: TextInputAction.done,
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter a country' : null,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                GestureDetector(
+                  onTap: _openMapPicker,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_pin, color: AppColors.neutral500),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Text(
+                            _lat == null
+                                ? 'Pin this address on a map (optional)'
+                                : 'Pin set (${_lat!.toStringAsFixed(6)}, ${_lng!.toStringAsFixed(6)}) — tap to adjust',
+                            style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Row(

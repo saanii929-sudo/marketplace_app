@@ -17,6 +17,8 @@ class AddressInput {
     required this.region,
     required this.country,
     this.isDefault = false,
+    this.lat,
+    this.lng,
   });
 
   final String label;
@@ -29,6 +31,13 @@ class AddressInput {
   final String country;
   final bool isDefault;
 
+  /// **Unconfirmed** whether the backend's serializer accepts these — see
+  /// `Address.lat`/`.lng`. Omitted from the payload entirely when null,
+  /// rather than sent as explicit `null`, so an address save never
+  /// regresses a previously-set pin by accident.
+  final double? lat;
+  final double? lng;
+
   Map<String, dynamic> toJson() => {
     'label': label,
     'recipient_name': recipientName,
@@ -39,6 +48,8 @@ class AddressInput {
     'region': region,
     'country': country,
     'is_default': isDefault,
+    'lat': ?lat,
+    'lng': ?lng,
   };
 }
 

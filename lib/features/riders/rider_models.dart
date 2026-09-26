@@ -1,11 +1,3 @@
-/// A rider's own vehicle info, from `GET`/`PATCH /riders/vehicle/`.
-///
-/// Neither endpoint's request/response body is documented in the given API
-/// (both show "No response body" in the spec) — every field here is
-/// therefore optional/defaulted so an unexpected shape degrades to blank
-/// fields instead of a crash. The field names assumed are the vehicle
-/// fields `POST /riders/register/` already documents, since that's the
-/// only plausible shape for a sibling "vehicle" endpoint.
 class RiderVehicle {
   const RiderVehicle({
     required this.vehicleType,
@@ -23,61 +15,55 @@ class RiderVehicle {
 
   static const empty = RiderVehicle(vehicleType: 'bicycle', vehicleMake: '', vehicleModel: '', plateNumber: '', color: '');
 
+  /// Confirmed real (`GET riders/vehicle/` response) — the server's fields
+  /// are `type`/`make`/`model`, not `vehicle_type`/`vehicle_make`/`vehicle_model`.
   factory RiderVehicle.fromJson(Map<String, dynamic> json) => RiderVehicle(
-    vehicleType: json['vehicle_type'] as String? ?? 'bicycle',
-    vehicleMake: json['vehicle_make'] as String? ?? '',
-    vehicleModel: json['vehicle_model'] as String? ?? '',
+    vehicleType: json['type'] as String? ?? json['vehicle_type'] as String? ?? 'bicycle',
+    vehicleMake: json['make'] as String? ?? json['vehicle_make'] as String? ?? '',
+    vehicleModel: json['model'] as String? ?? json['vehicle_model'] as String? ?? '',
     plateNumber: json['plate_number'] as String? ?? '',
     color: json['color'] as String? ?? '',
   );
 
   Map<String, dynamic> toJson() => {
-    'vehicle_type': vehicleType,
-    'vehicle_make': vehicleMake,
-    'vehicle_model': vehicleModel,
+    'type': vehicleType,
+    'make': vehicleMake,
+    'model': vehicleModel,
     'plate_number': plateNumber,
     'color': color,
   };
 }
 
-/// The rider's own verification status, from
-/// `GET /riders/verification-status/` — undocumented response body in the
-/// given spec, so only a generic `status` string is read (trying a couple
-/// of plausible key names), matching the "defensive status-string" pattern
-/// already used elsewhere in this app (e.g. order/Hubtel status).
+/// `GET riders/verification-status/` — confirmed real shape:
+/// `{is_verified, documents: [{doc_type, status, expires_at, ...}]}`.
+/// There's no aggregate status string; overall approval is the `is_verified`
+/// boolean, and rejection is inferred from the per-document statuses.
 class RiderVerificationStatus {
-  const RiderVerificationStatus({required this.status});
+  const RiderVerificationStatus({required this.isVerified, required this.documents});
 
-  final String status;
+  final bool isVerified;
+  final List<RiderDocument> documents;
 
-  bool get isApproved {
-    final s = status.toLowerCase();
-    return s.contains('approve') || s.contains('verified');
-  }
-
-  bool get isRejected => status.toLowerCase().contains('reject');
+  bool get isApproved => isVerified;
+  bool get isRejected => documents.any((d) => d.isRejected);
 
   factory RiderVerificationStatus.fromJson(Map<String, dynamic> json) => RiderVerificationStatus(
-    status: json['status'] as String? ?? json['verification_status'] as String? ?? '',
+    isVerified: json['is_verified'] as bool? ?? false,
+    documents: (json['documents'] as List<dynamic>? ?? [])
+        .map((e) => RiderDocument.fromJson(e as Map<String, dynamic>))
+        .toList(),
   );
 }
 
 double _num(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
 
-/// The 4 documents the onboarding upload screen collects and the profile's
-/// Documents screen displays — shared here so both stay in sync on the
-/// (`document_type` value, display label) pairing.
 const riderDocumentTypes = [
   ('government_id', 'Government ID'),
-  ('drivers_license', 'Driver\'s licence'),
+  ('drivers_licence', 'Driver\'s licence'),
   ('vehicle_registration', 'Vehicle registration'),
   ('profile_photo', 'Profile photo'),
 ];
 
-/// A pending delivery request pushed over the dispatch WebSocket as
-/// `{"type": "delivery_request", "request": {...}}`. None of these field
-/// names were confirmed against a live response yet — this is the exact
-/// shape from the endpoint spec handed to the backend dev.
 class RiderDeliveryRequest {
   const RiderDeliveryRequest({
     required this.id,
@@ -119,8 +105,6 @@ class RiderDeliveryRequest {
   );
 }
 
-/// A rider's own delivery — returned by accept, the active-delivery check,
-/// and the deliveries-history list.
 class RiderDelivery {
   const RiderDelivery({
     required this.id,
@@ -130,9 +114,12 @@ class RiderDelivery {
     required this.pickupAddress,
     required this.dropoffAddress,
     required this.customerName,
+    required this.customerPhone,
     required this.amount,
+    required this.distanceKm,
     required this.status,
     required this.rating,
+    required this.pickedUpAt,
     required this.completedAt,
   });
 
@@ -145,12 +132,21 @@ class RiderDelivery {
   final String pickupAddress;
   final String dropoffAddress;
   final String customerName;
+  final String customerPhone;
   final double amount;
+  final double distanceKm;
   final String status;
   final double? rating;
+  final DateTime? pickedUpAt;
   final DateTime? completedAt;
 
-  bool get isDelivered => status.toLowerCase().contains('deliver');
+  /// Confirmed real values (backend dev, `Trip.Status`) for the active
+  /// delivery payload — `heading_to_pickup`, `picked_up`, `heading_to_dropoff`.
+  bool get isHeadingToPickup => status == 'heading_to_pickup';
+  bool get isPickedUp => status == 'picked_up';
+  bool get isHeadingToDropoff => status == 'heading_to_dropoff';
+
+  bool get isDelivered => status.toLowerCase().contains('deliver') && !isHeadingToDropoff;
   bool get isCancelled => status.toLowerCase().contains('cancel');
 
   factory RiderDelivery.fromJson(Map<String, dynamic> json) => RiderDelivery(
@@ -165,9 +161,12 @@ class RiderDelivery {
     pickupAddress: json['pickup_address'] as String? ?? '',
     dropoffAddress: json['dropoff_address'] as String? ?? '',
     customerName: json['customer_name'] as String? ?? '',
+    customerPhone: json['customer_phone'] as String? ?? '',
     amount: _num(json['amount']),
+    distanceKm: _num(json['distance_km']),
     status: json['status'] as String? ?? '',
     rating: json['rating'] == null ? null : _num(json['rating']),
+    pickedUpAt: DateTime.tryParse(json['picked_up_at'] as String? ?? ''),
     completedAt: DateTime.tryParse(json['completed_at'] as String? ?? ''),
   );
 }
@@ -273,6 +272,41 @@ class RiderReviewSummary {
   }
 }
 
+class RiderSettings {
+  const RiderSettings({
+    required this.isOnline,
+    required this.isVerified,
+    required this.ratingAvg,
+    required this.acceptanceRate,
+    required this.minTripValue,
+    required this.pushNotificationsEnabled,
+    required this.emailOffersEnabled,
+  });
+
+  final bool isOnline;
+  final bool isVerified;
+  final double ratingAvg;
+  final double acceptanceRate;
+  final double minTripValue;
+  final bool pushNotificationsEnabled;
+  final bool emailOffersEnabled;
+
+  String get formattedAcceptanceRate {
+    final pct = acceptanceRate <= 1 ? acceptanceRate * 100 : acceptanceRate;
+    return '${pct.toStringAsFixed(0)}%';
+  }
+
+  factory RiderSettings.fromJson(Map<String, dynamic> json) => RiderSettings(
+    isOnline: json['is_online'] as bool? ?? false,
+    isVerified: json['is_verified'] as bool? ?? false,
+    ratingAvg: _num(json['rating_avg']),
+    acceptanceRate: _num(json['acceptance_rate']),
+    minTripValue: _num(json['min_trip_value']),
+    pushNotificationsEnabled: json['push_notifications_enabled'] as bool? ?? true,
+    emailOffersEnabled: json['email_offers_enabled'] as bool? ?? false,
+  );
+}
+
 class RiderDocument {
   const RiderDocument({
     required this.documentType,
@@ -290,9 +324,9 @@ class RiderDocument {
   bool get isRejected => status.toLowerCase().contains('reject');
 
   factory RiderDocument.fromJson(Map<String, dynamic> json) => RiderDocument(
-    documentType: json['document_type'] as String? ?? '',
+    documentType: json['doc_type'] as String? ?? json['document_type'] as String? ?? '',
     status: json['status'] as String? ?? '',
     expiresAt: DateTime.tryParse(json['expires_at'] as String? ?? ''),
-    fileUrl: json['file_url'] as String?,
+    fileUrl: json['file'] as String? ?? json['file_url'] as String?,
   );
 }

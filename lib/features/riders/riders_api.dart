@@ -36,8 +36,6 @@ class RidersApi {
     ),
   );
 
-  /// Returns `null` if there's nothing on file yet (a 404), rather than
-  /// surfacing that as an error — mirrors `SellersApi.getStatus()`.
   Future<RiderVehicle?> getVehicle() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('riders/vehicle/');
@@ -66,14 +64,41 @@ class RidersApi {
     }
   }
 
-  // --- Rider-ops endpoints (Phase 7: real backend replacing the earlier
-  // local simulation). None of these shapes have been empirically verified
-  // against a live server yet — they follow the spec exactly as handed to
-  // the backend dev, and every model field is parsed defensively so a
-  // mismatch degrades gracefully rather than crashing.
+  /// Confirmed real (backend dev verified via a live GET/PATCH/GET
+  /// round-trip) — the source of truth for `acceptance_rate`,
+  /// `rating_avg`, and the two preference toggles.
+  Future<RiderSettings> getSettings() => _guard(() async {
+    final response = await _dio.get<Map<String, dynamic>>('riders/me/settings/');
+    return RiderSettings.fromJson(response.data!);
+  });
+
+  /// Either field is optional and independent — only send what changed.
+  Future<RiderSettings> updateSettings({double? minTripValue, bool? pushNotificationsEnabled}) => _guard(() async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      'riders/me/settings/',
+      data: {
+        'min_trip_value': ?minTripValue?.toStringAsFixed(2),
+        'push_notifications_enabled': ?pushNotificationsEnabled,
+      },
+    );
+    return RiderSettings.fromJson(response.data!);
+  });
 
   Future<void> setOnline(bool isOnline) =>
       _guard(() => _dio.patch<dynamic>('riders/status/', data: {'is_online': isOnline}));
+
+  /// Confirmed real (backend dev, `RiderLocationPingView`) — a separate
+  /// endpoint from `riders/status/`, which has no lat/lng fields at all.
+  /// No backend-enforced interval; pinged on a client-side timer while online.
+  /// `LocationPingSerializer` caps lat/lng at 6 decimal places
+  /// (`max_digits=9, decimal_places=6`) — raw GPS doubles from `geolocator`
+  /// have far more precision than that, so every ping 400s without rounding.
+  Future<void> sendLocationPing({required double lat, required double lng}) => _guard(
+    () => _dio.post<dynamic>(
+      'riders/location/',
+      data: {'lat': _roundTo6dp(lat), 'lng': _roundTo6dp(lng)},
+    ),
+  );
 
   Future<RiderDelivery> acceptRequest(int requestId) => _guard(() async {
     final response = await _dio.post<Map<String, dynamic>>('riders/delivery-requests/$requestId/accept/');
@@ -83,19 +108,12 @@ class RidersApi {
   Future<void> declineRequest(int requestId) =>
       _guard(() => _dio.post<dynamic>('riders/delivery-requests/$requestId/decline/'));
 
-  // The user confirmed `POST trips/{id}/confirm-pickup/`, `.../complete/`,
-  // `.../proof-of-delivery/` and `.../rate-rider/` as real — the resource
-  // is called a "trip," not a "rider delivery" as originally guessed.
-  // `getActiveDelivery()`/`getDeliveries()` below are repointed to
-  // `trips/active/`/`trips/` to match — that specific pairing wasn't
-  // directly confirmed, only inferred from the trip-action endpoints'
-  // naming, so it's the one part of this block still worth double-checking
-  // against the live server.
-
-  /// `null` if there's no delivery currently in progress.
+  /// Confirmed real (backend dev verified via source: `riders/urls.py:25` →
+  /// `RiderActiveDeliveryView`) — 204 with no body if there's nothing
+  /// in-progress, 200 with the active trip otherwise.
   Future<RiderDelivery?> getActiveDelivery() async {
     try {
-      final response = await _dio.get<Map<String, dynamic>>('trips/active/');
+      final response = await _dio.get<Map<String, dynamic>>('riders/deliveries/active/');
       final data = response.data;
       return data == null ? null : RiderDelivery.fromJson(data);
     } on DioException catch (e) {
@@ -104,25 +122,26 @@ class RidersApi {
     }
   }
 
+  /// Backend dev has confirmed twice now (source review, then a live 404 on
+  /// `GET trips/`) that there's no `trips/` prefix anywhere in this API —
+  /// it's namespaced under `riders/deliveries/`, matching the confirmed
+  /// `riders/deliveries/active/`. Switched these four from the original
+  /// `trips/{id}/...` Swagger paste, which apparently didn't match reality.
   Future<RiderDelivery> confirmPickup(int tripId) => _guard(() async {
-    final response = await _dio.post<Map<String, dynamic>>('trips/$tripId/confirm-pickup/');
+    final response = await _dio.post<Map<String, dynamic>>('riders/deliveries/$tripId/confirm-pickup/');
     return RiderDelivery.fromJson(response.data!);
   });
 
-  /// Step 2 of completion: the rider submits the customer's OTP code plus a
-  /// proof-of-delivery photo. The server almost certainly validates the
-  /// code here (a wrong one should come back as a normal validation error
-  /// via [ApiException]) — [completeTrip] below is the separate finalize
-  /// call made once this succeeds.
   Future<void> submitProofOfDelivery(int tripId, {required String otpCode, required File photo}) => _guard(() async {
     final form = FormData.fromMap({'otp_code': otpCode, 'photo': await MultipartFile.fromFile(photo.path)});
-    await _dio.post<dynamic>('trips/$tripId/proof-of-delivery/', data: form);
+    await _dio.post<dynamic>('riders/deliveries/$tripId/proof-of-delivery/', data: form);
   });
 
-  Future<void> completeTrip(int tripId) => _guard(() => _dio.post<dynamic>('trips/$tripId/complete/'));
+  Future<void> completeTrip(int tripId) =>
+      _guard(() => _dio.post<dynamic>('riders/deliveries/$tripId/complete/'));
 
   Future<List<RiderDelivery>> getDeliveries() => _guard(() async {
-    final response = await _dio.get<Map<String, dynamic>>('trips/');
+    final response = await _dio.get<Map<String, dynamic>>('riders/deliveries/');
     final results = response.data?['results'] as List<dynamic>? ?? [];
     return results.map((e) => RiderDelivery.fromJson(e as Map<String, dynamic>)).toList();
   });
@@ -177,7 +196,7 @@ class RidersApi {
 
   Future<RiderDocument> uploadDocument({required String documentType, required File file}) => _guard(() async {
     final form = FormData.fromMap({
-      'document_type': documentType,
+      'doc_type': documentType,
       'file': await MultipartFile.fromFile(file.path),
     });
     final response = await _dio.post<Map<String, dynamic>>('riders/documents/', data: form);
@@ -197,3 +216,5 @@ class RidersApi {
     }
   }
 }
+
+double _roundTo6dp(double value) => (value * 1000000).round() / 1000000;

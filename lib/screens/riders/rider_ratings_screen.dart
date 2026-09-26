@@ -12,7 +12,6 @@ import '../../widgets/states/shimmer_box.dart';
 
 const _starOrder = [5, 4, 3, 2, 1];
 
-/// `GET riders/reviews/summary/` and `GET riders/reviews/`.
 class RiderRatingsScreen extends ConsumerWidget {
   const RiderRatingsScreen({super.key});
 

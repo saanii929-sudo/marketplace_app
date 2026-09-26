@@ -12,7 +12,6 @@ import '../../widgets/overlays/app_modal.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/shimmer_box.dart';
 
-/// `GET riders/documents/` — per-document status/expiry/file.
 class RiderDocumentsViewScreen extends ConsumerWidget {
   const RiderDocumentsViewScreen({super.key});
 
